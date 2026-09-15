@@ -1,56 +1,252 @@
-# Welcome to your Expo app 👋
+# NearBuy
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+### A Reverse Marketplace for Local Shopping
 
-## Get started
+NearBuy is a mobile application that connects customers with nearby local shops. Instead of customers searching through multiple shops for a product, they can post what they need, and nearby sellers can respond with their offers.
 
-1. Install dependencies
+This helps customers compare local offers and helps small businesses reach customers in their area.
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## 📱 Project Overview
 
-   ```bash
-   npx expo start
-   ```
+NearBuy follows a **reverse marketplace** model.
 
-In the output, you'll find options to open the app in a
+### Customer Flow
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+1. Register or log in
+2. Save location
+3. Post a product request
+4. Enter budget, condition, and other requirements
+5. Receive offers from nearby sellers
+6. Compare available offers
+7. Accept an offer
+8. View the order
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Seller Flow
 
-## Get a fresh project
+1. Register a shop
+2. Log in as a seller
+3. View nearby customer requests
+4. Open request details
+5. Submit an offer
+6. Track submitted offers
+7. Manage shop profile and location
 
-When you're ready, run:
+---
 
-```bash
-npm run reset-project
-```
+## ✨ Features
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Customer
+- Customer registration and login
+- Saved location
+- Post product requests
+- View and manage requests
+- View seller offers
+- Accept an offer
+- View orders
+- Edit profile
+- Change password
 
-### Other setup steps
+### Seller
+- Seller registration and login
+- Shop profile
+- View nearby customer requests
+- View request details
+- Make offers
+- View submitted offers
+- Edit shop details
+- Manage shop location
+- Change password
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### Backend
+- REST API
+- User authentication
+- Request management
+- Offer management
+- Order management
+- MongoDB database
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## 🛠️ Technologies Used
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Frontend
+- React Native
+- Expo
+- TypeScript
+- Expo Router
 
-## Join the community
+### Backend
+- Node.js
+- Express.js
 
-Join our community of developers creating universal apps.
+### Database
+- MongoDB Atlas
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Development & Testing
+- Visual Studio Code
+- Postman / Thunder Client
+- Git
+- GitHub
+- Expo EAS
+
+---
+
+## 🏗️ System Architecture
+
+```text
+┌─────────────────────┐
+│   React Native App  │
+│      (Expo)         │
+└──────────┬──────────┘
+           │
+           │ REST API
+           ▼
+┌─────────────────────┐
+│   Node.js + Express │
+│       Backend       │
+└──────────┬──────────┘
+           │
+           │ MongoDB Driver
+           ▼
+┌─────────────────────┐
+│    MongoDB Atlas    │
+│      Database       │
+└─────────────────────┘
+
+
+🔄 How NearBuy Works
+
+Customer
+   │
+   ▼
+Post Product Request
+   │
+   ▼
+Nearby Sellers View Request
+   │
+   ▼
+Sellers Submit Offers
+   │
+   ▼
+Customer Compares Offers
+   │
+   ▼
+Customer Accepts Offer
+   │
+   ▼
+Order Created
+
+📂 Project Structure
+
+NearBuy/
+│
+├── src/
+│   └── app/
+│       ├── customer-login.tsx
+│       ├── customer-register.tsx
+│       ├── customer-home.tsx
+│       ├── customer-profile.tsx
+│       ├── post-request.tsx
+│       ├── offers.tsx
+│       ├── seller-login.tsx
+│       ├── seller-register.tsx
+│       ├── seller-home.tsx
+│       ├── seller-request-details.tsx
+│       ├── make-offer.tsx
+│       └── ...
+│
+├── backend/
+│   ├── models/
+│   ├── routes/
+│   ├── server.js
+│   └── package.json
+│
+├── assets/
+├── app.json
+├── eas.json
+├── package.json
+└── README.md
+
+🚀 Getting Started
+Prerequisites
+
+Make sure the following are installed:
+
+Node.js
+npm
+Expo CLI / Expo tools
+Git
+MongoDB Atlas account
+Frontend
+
+Clone the repository:
+
+git clone https://github.com/Saquibguy/NearBuy.git
+
+Go to the project folder:
+
+cd NearBuy
+
+Install dependencies:
+
+npm install
+
+Start the Expo development server:
+
+npx expo start
+⚙️ Backend Setup
+
+Go to the backend folder:
+
+cd backend
+
+Install dependencies:
+
+npm install
+
+Create a .env file:
+
+MONGO_URI=your_mongodb_connection_string
+PORT=5000
+
+Start the backend:
+
+npm start
+
+The backend provides REST API endpoints for authentication, requests, offers, and orders.
+
+🔐 Security Note
+
+Environment variables such as database connection strings should not be committed to GitHub.
+
+The .env file is excluded using .gitignore.
+
+🎯 Project Objectives
+Connect customers with nearby local shops
+Make local shopping easier
+Allow customers to compare seller offers
+Help local businesses find potential customers
+Reduce unnecessary shop-to-shop searching
+Provide a digital platform for local shopping
+
+🔮 Future Scope
+Online payment integration
+Real-time notifications
+GPS-based seller discovery
+In-app chat between customers and sellers
+Product image uploads
+Seller ratings and reviews
+Admin dashboard
+Order delivery tracking
+
+👨‍💻 Project
+
+Project Name: NearBuy
+Type: BSc Computer Science Final Year Project
+Category: Local Shopping / Reverse Marketplace
+
+📄 License
+
+This project was developed as an academic project for educational purposes.
