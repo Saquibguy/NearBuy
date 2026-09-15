@@ -1,213 +1,491 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
+const API_URL = 'http://192.168.0.101:5000';
+
 export default function OffersScreen() {
-  const selectOffer = (shopName: string, price: string) => {
+  const { requestId } = useLocalSearchParams<{
+    requestId?: string;
+  }>();
+
+  const [request, setRequest] = useState<any>(null);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (requestId) {
+      loadData();
+    }
+  }, [requestId]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      if (!requestId) {
+        throw new Error('Request ID is missing');
+      }
+
+      // Get request details
+      const requestResponse = await fetch(
+        `${API_URL}/api/requests/${requestId}`
+      );
+
+      const requestData = await requestResponse.json();
+
+      if (!requestResponse.ok) {
+        throw new Error(
+          requestData.message ||
+            'Failed to load request'
+        );
+      }
+
+      setRequest(requestData.request);
+
+      // Get offers for this request
+      const offersResponse = await fetch(
+        `${API_URL}/api/offers/request/${requestId}`
+      );
+
+      const offersData = await offersResponse.json();
+
+      if (!offersResponse.ok) {
+        throw new Error(
+          offersData.message ||
+            'Failed to load offers'
+        );
+      }
+
+      setOffers(offersData.offers || []);
+    } catch (error) {
+      console.error(
+        'Load offers error:',
+        error
+      );
+
+      Alert.alert(
+        'Error',
+        error instanceof Error
+          ? error.message
+          : 'Unable to load offers.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (date: string) => {
+    if (!date) {
+      return 'Recently';
+    }
+
+    return new Date(date).toLocaleDateString(
+      'en-IN',
+      {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }
+    );
+  };
+
+  // Select an offer
+  const handleSelectOffer = (
+    offerId: string
+  ) => {
     Alert.alert(
-      'Offer Selected',
-      `${shopName} offered ${price}.\n\nYou can now visit the shop and complete your purchase.`,
+      'Select Offer',
+      'Are you sure you want to select this offer?',
       [
         {
-          text: 'OK',
-          onPress: () => router.push('/order-confirmation'),
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Select',
+          onPress: async () => {
+            try {
+              const response = await fetch(
+                `${API_URL}/api/offers/${offerId}/accept`,
+                {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type':
+                      'application/json',
+                  },
+                }
+              );
+
+              const data =
+                await response.json();
+
+              if (!response.ok) {
+                throw new Error(
+                  data.message ||
+                    'Failed to select offer'
+                );
+              }
+
+              Alert.alert(
+                'Offer Selected!',
+                'You have successfully selected this seller offer.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      loadData();
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error(
+                'Select offer error:',
+                error
+              );
+
+              Alert.alert(
+                'Error',
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to select offer.'
+              );
+            }
+          },
         },
       ]
     );
   };
 
+  // Loading screen
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator
+          size="large"
+          color="#2563EB"
+        />
+
+        <Text style={styles.loadingText}>
+          Loading offers...
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.backButton}
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={
+          styles.scrollContent
+        }
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.backText}>‹ Back</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.logo}>NearBuy</Text>
-
-      <Text style={styles.title}>Your Offers</Text>
-
-      <Text style={styles.subtitle}>
-        Compare offers from nearby local shops.
-      </Text>
-
-      {/* Request Summary */}
-
-      <View style={styles.requestCard}>
-        <Text style={styles.requestLabel}>
-          YOUR REQUEST
-        </Text>
-
-        <Text style={styles.product}>
-          🎧 Bluetooth Headphones
-        </Text>
-
-        <Text style={styles.requestDetail}>
-          Budget: ₹2,000 • Quantity: 1
-        </Text>
-      </View>
-
-      <Text style={styles.offerCount}>
-        3 shops responded
-      </Text>
-
-      {/* Offer 1 */}
-
-      <View style={styles.offerCard}>
-        <View style={styles.shopHeader}>
-          <View>
-            <Text style={styles.shopName}>
-              Sharma Electronics
-            </Text>
-
-            <Text style={styles.location}>
-              📍 1.2 km away
-            </Text>
-          </View>
-
-          <Text style={styles.rating}>
-            ★ 4.7
-          </Text>
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹1,799</Text>
-
-          <Text style={styles.available}>
-            Available today
-          </Text>
-        </View>
-
-        <Text style={styles.condition}>
-          New • Warranty available
-        </Text>
+        {/* Back Button */}
 
         <TouchableOpacity
-          style={styles.selectButton}
-          onPress={() =>
-            selectOffer('Sharma Electronics', '₹1,799')
-          }
+          onPress={() => router.back()}
+          style={styles.backButton}
         >
-          <Text style={styles.selectText}>
-            Select Offer
+          <Text style={styles.backText}>
+            ‹ Back
           </Text>
         </TouchableOpacity>
-      </View>
 
-      {/* Offer 2 */}
+        {/* Header */}
 
-      <View style={styles.offerCard}>
-        <View style={styles.shopHeader}>
-          <View>
-            <Text style={styles.shopName}>
-              City Tech Store
-            </Text>
-
-            <Text style={styles.location}>
-              📍 1.8 km away
-            </Text>
-          </View>
-
-          <Text style={styles.rating}>
-            ★ 4.5
-          </Text>
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹1,650</Text>
-
-          <Text style={styles.available}>
-            Available today
-          </Text>
-        </View>
-
-        <Text style={styles.condition}>
-          New • 1 year warranty
+        <Text style={styles.title}>
+          Offers
         </Text>
 
-        <TouchableOpacity
-          style={styles.selectButton}
-          onPress={() =>
-            selectOffer('City Tech Store', '₹1,650')
-          }
-        >
-          <Text style={styles.selectText}>
-            Select Offer
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Offer 3 */}
-
-      <View style={styles.offerCard}>
-        <View style={styles.shopHeader}>
-          <View>
-            <Text style={styles.shopName}>
-              Mobile & More
-            </Text>
-
-            <Text style={styles.location}>
-              📍 2.6 km away
-            </Text>
-          </View>
-
-          <Text style={styles.rating}>
-            ★ 4.3
-          </Text>
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹1,850</Text>
-
-          <Text style={styles.available}>
-            Available tomorrow
-          </Text>
-        </View>
-
-        <Text style={styles.condition}>
-          New • Warranty available
+        <Text style={styles.subtitle}>
+          Compare offers from nearby sellers
         </Text>
 
-        <TouchableOpacity
-          style={styles.selectButton}
-          onPress={() =>
-            selectOffer('Mobile & More', '₹1,850')
-          }
-        >
-          <Text style={styles.selectText}>
-            Select Offer
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* Request Information */}
 
-      <Text style={styles.footer}>
-        Buy from a nearby shop and support your local market.
-      </Text>
-    </ScrollView>
+        {request && (
+          <View style={styles.requestCard}>
+            <Text style={styles.productName}>
+              {request.productName}
+            </Text>
+
+            <Text style={styles.category}>
+              {request.category}
+            </Text>
+
+            <View style={styles.budgetRow}>
+              <Text style={styles.budgetLabel}>
+                Your Budget
+              </Text>
+
+              <Text style={styles.budget}>
+                ₹{request.budget}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Offers */}
+
+        {offers.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyIcon}>
+              📭
+            </Text>
+
+            <Text style={styles.emptyTitle}>
+              No Offers Yet
+            </Text>
+
+            <Text style={styles.emptyText}>
+              Sellers have not submitted any
+              offers for this request yet.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.offerCount}>
+              {offers.length}{' '}
+              {offers.length === 1
+                ? 'Offer'
+                : 'Offers'}{' '}
+              Received
+            </Text>
+
+            {offers.map((offer) => (
+              <View
+                key={offer._id}
+                style={styles.offerCard}
+              >
+                {/* Seller Header */}
+
+                <View
+                  style={styles.sellerHeader}
+                >
+                  <View
+                    style={styles.sellerIcon}
+                  >
+                    <Text
+                      style={styles.sellerEmoji}
+                    >
+                      🏪
+                    </Text>
+                  </View>
+
+                  <View
+                    style={styles.sellerInfo}
+                  >
+                    <Text
+                      style={styles.shopName}
+                    >
+                      {offer.sellerId
+                        ?.shopName ||
+                        'Local Shop'}
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.sellerCategory
+                      }
+                    >
+                      {offer.sellerId
+                        ?.category ||
+                        'Seller'}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={styles.statusBadge}
+                  >
+                    <Text
+                      style={styles.statusText}
+                    >
+                      {offer.status}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Price */}
+
+                <View
+                  style={styles.priceSection}
+                >
+                  <Text
+                    style={styles.priceLabel}
+                  >
+                    Seller Offer
+                  </Text>
+
+                  <Text
+                    style={styles.price}
+                  >
+                    ₹{offer.price}
+                  </Text>
+                </View>
+
+                {/* Details */}
+
+                <View style={styles.details}>
+                  <View
+                    style={styles.detailRow}
+                  >
+                    <Text
+                      style={styles.detailLabel}
+                    >
+                      Condition
+                    </Text>
+
+                    <Text
+                      style={styles.detailValue}
+                    >
+                      {offer.condition}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={styles.detailRow}
+                  >
+                    <Text
+                      style={styles.detailLabel}
+                    >
+                      Availability
+                    </Text>
+
+                    <Text
+                      style={styles.detailValue}
+                    >
+                      {offer.availability}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={styles.detailRow}
+                  >
+                    <Text
+                      style={styles.detailLabel}
+                    >
+                      Shop Address
+                    </Text>
+
+                    <Text
+                      style={styles.detailValue}
+                    >
+                      {offer.shopAddress}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Seller Message */}
+
+                {offer.message ? (
+                  <View
+                    style={styles.messageBox}
+                  >
+                    <Text
+                      style={
+                        styles.messageLabel
+                      }
+                    >
+                      Seller Message
+                    </Text>
+
+                    <Text
+                      style={styles.message}
+                    >
+                      {offer.message}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {/* Rating */}
+
+                <View
+                  style={styles.ratingRow}
+                >
+                  <Text
+                    style={styles.rating}
+                  >
+                    ★{' '}
+                    {offer.sellerId
+                      ?.rating ?? 0}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.reviewText
+                    }
+                  >
+                    (
+                    {offer.sellerId
+                      ?.reviewCount ?? 0}{' '}
+                    reviews)
+                  </Text>
+
+                  <Text
+                    style={styles.date}
+                  >
+                    {formatDate(
+                      offer.createdAt
+                    )}
+                  </Text>
+                </View>
+
+                {/* Select Offer Button */}
+
+                {offer.status ===
+                  'Pending' &&
+                  request?.status ===
+                    'Active' && (
+                    <TouchableOpacity
+                      style={
+                        styles.selectButton
+                      }
+                      onPress={() =>
+                        handleSelectOffer(
+                          offer._id
+                        )
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.selectButtonText
+                        }
+                      >
+                        Select This Offer
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+              </View>
+            ))}
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FC',
+    backgroundColor: '#F8FAFC',
   },
 
-  content: {
-    padding: 24,
-    paddingBottom: 50,
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
+
+  /* Back */
 
   backButton: {
     marginTop: 10,
@@ -220,140 +498,293 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  logo: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#2563EB',
-  },
+  /* Header */
 
   title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 25,
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#0F172A',
   },
 
   subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginTop: 8,
-    marginBottom: 25,
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 5,
+    marginBottom: 20,
   },
+
+  /* Request */
 
   requestCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 15,
+    borderRadius: 14,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 22,
+    borderColor: '#E2E8F0',
   },
 
-  requestLabel: {
-    fontSize: 11,
+  productName: {
+    fontSize: 19,
     fontWeight: '700',
-    color: '#6B7280',
-    letterSpacing: 1,
+    color: '#0F172A',
   },
 
-  product: {
+  category: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 4,
+  },
+
+  budgetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 15,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+
+  budgetLabel: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+
+  budget: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
-    marginTop: 8,
+    color: '#2563EB',
   },
 
-  requestDetail: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 6,
-  },
+  /* Offer Count */
 
   offerCount: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
+    marginTop: 25,
     marginBottom: 12,
   },
 
+  /* Offer Card */
+
   offerCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 18,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 15,
+    borderColor: '#E2E8F0',
   },
 
-  shopHeader: {
+  /* Seller */
+
+  sellerHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+  },
+
+  sellerIcon: {
+    width: 45,
+    height: 45,
+    borderRadius: 23,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  sellerEmoji: {
+    fontSize: 23,
+  },
+
+  sellerInfo: {
+    flex: 1,
   },
 
   shopName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#111827',
+    color: '#0F172A',
   },
 
-  location: {
+  sellerCategory: {
     fontSize: 13,
-    color: '#6B7280',
-    marginTop: 5,
+    color: '#64748B',
+    marginTop: 3,
+  },
+
+  /* Status */
+
+  statusBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+
+  statusText: {
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  /* Price */
+
+  priceSection: {
+    marginTop: 18,
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  priceLabel: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+
+  price: {
+    fontSize: 25,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginTop: 4,
+  },
+
+  /* Details */
+
+  details: {
+    marginTop: 10,
+  },
+
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+  },
+
+  detailLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    maxWidth: '40%',
+  },
+
+  detailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+    maxWidth: '55%',
+    textAlign: 'right',
+  },
+
+  /* Message */
+
+  messageBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 9,
+    padding: 12,
+    marginTop: 10,
+  },
+
+  messageLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 5,
+  },
+
+  message: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 19,
+  },
+
+  /* Rating */
+
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
   },
 
   rating: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#F59E0B',
-  },
-
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 18,
-  },
-
-  price: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-  },
-
-  available: {
-    fontSize: 12,
-    color: '#16A34A',
     fontWeight: '600',
+    color: '#0F172A',
   },
 
-  condition: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 7,
+  reviewText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginLeft: 4,
   },
+
+  date: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginLeft: 'auto',
+  },
+
+  /* Select Offer */
 
   selectButton: {
-    height: 48,
-    backgroundColor: '#2563EB',
+    height: 44,
     borderRadius: 10,
+    backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 15,
   },
 
-  selectText: {
+  selectButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
 
-  footer: {
+  /* Empty */
+
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 30,
+    alignItems: 'center',
+    marginTop: 25,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  emptyIcon: {
+    fontSize: 45,
+  },
+
+  emptyTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 12,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: '#64748B',
     textAlign: 'center',
-    color: '#9CA3AF',
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 20,
+    marginTop: 7,
+    lineHeight: 20,
+  },
+
+  /* Loading */
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: '#64748B',
+    fontSize: 15,
   },
 });

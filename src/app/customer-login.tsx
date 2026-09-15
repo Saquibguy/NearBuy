@@ -1,5 +1,10 @@
 import { router } from 'expo-router';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import {
+  ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -7,19 +12,160 @@ import {
   View,
 } from 'react-native';
 
+import { useState } from 'react';
+
+const API_URL = 'http://192.168.0.101:5000';
+
 export default function CustomerLoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // Email validation
+    if (!trimmedEmail) {
+      Alert.alert(
+        'Missing Email',
+        'Please enter your email.'
+      );
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      Alert.alert(
+        'Invalid Email',
+        'Please enter a valid email address.'
+      );
+      return;
+    }
+
+    // Password validation
+    if (!password) {
+      Alert.alert(
+        'Missing Password',
+        'Please enter your password.'
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/auth/login`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: trimmedEmail,
+            password,
+            role: 'customer',
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      // Backend returned an error
+      if (!response.ok) {
+        Alert.alert(
+          'Login Failed',
+          data.message || 'Invalid email or password.'
+        );
+        return;
+      }
+
+      // Save logged-in customer
+      await AsyncStorage.setItem(
+        'loggedInUser',
+        JSON.stringify(data.user)
+      );
+
+      const userId =
+        data.user.id ||
+        data.user._id;
+
+      if (!userId) {
+        Alert.alert(
+          'Login Error',
+          'User information is incomplete.'
+        );
+        return;
+      }
+
+      // Check saved location
+      const savedLocation =
+        await AsyncStorage.getItem(
+          `customerLocation_${userId}`
+        );
+
+      // Customer already has a location
+      if (savedLocation) {
+        Alert.alert(
+          'Welcome Back!',
+          `Welcome back, ${data.user.name}!`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                router.replace('/customer-home');
+              },
+            },
+          ]
+        );
+
+        return;
+      }
+
+      // Customer does not have a location
+      Alert.alert(
+        'Location Required',
+        'Please set your location before continuing.',
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              router.replace('/saved-location');
+            },
+          },
+        ]
+      );
+
+    } catch (error) {
+      console.error(
+        'Login error:',
+        error
+      );
+
+      Alert.alert(
+        'Connection Error',
+        'Unable to connect to the NearBuy server.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
 
       <TouchableOpacity
         onPress={() => router.replace('/role')}
       >
-        <Text style={styles.back}>‹ Back</Text>
+        <Text style={styles.back}>
+          ‹ Back
+        </Text>
       </TouchableOpacity>
 
       <View style={styles.content}>
 
-        <Text style={styles.logo}>NearBuy</Text>
+        <Text style={styles.logo}>
+          NearBuy
+        </Text>
 
         <Text style={styles.title}>
           Welcome back 👋
@@ -29,7 +175,11 @@ export default function CustomerLoginScreen() {
           Sign in to continue shopping locally.
         </Text>
 
-        <Text style={styles.label}>Email</Text>
+        {/* Email */}
+
+        <Text style={styles.label}>
+          Email
+        </Text>
 
         <TextInput
           style={styles.input}
@@ -38,25 +188,49 @@ export default function CustomerLoginScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
+          value={email}
+          onChangeText={setEmail}
+          editable={!loading}
         />
 
-        <Text style={styles.label}>Password</Text>
+        {/* Password */}
+
+        <Text style={styles.label}>
+          Password
+        </Text>
 
         <TextInput
           style={styles.input}
           placeholder="Enter your password"
           placeholderTextColor="#9CA3AF"
           secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+          editable={!loading}
         />
 
+        {/* Login Button */}
+
         <TouchableOpacity
-  style={styles.loginButton}
-  onPress={() => router.replace('/customer-home')}
->
-  <Text style={styles.loginText}>
-    Sign In
-  </Text>
-</TouchableOpacity>
+          style={[
+            styles.loginButton,
+            loading && styles.buttonDisabled,
+          ]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator
+              color="#FFFFFF"
+            />
+          ) : (
+            <Text style={styles.loginText}>
+              Sign In
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Register */}
 
         <View style={styles.registerRow}>
 
@@ -65,7 +239,10 @@ export default function CustomerLoginScreen() {
           </Text>
 
           <TouchableOpacity
-            onPress={() => router.push('/customer-register')}
+            onPress={() =>
+              router.push('/customer-register')
+            }
+            disabled={loading}
           >
             <Text style={styles.registerLink}>
               {' '}Create Account
@@ -75,7 +252,6 @@ export default function CustomerLoginScreen() {
         </View>
 
       </View>
-
     </View>
   );
 }
@@ -91,6 +267,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#2563EB',
     marginTop: 15,
+    fontWeight: '600',
   },
 
   content: {
@@ -133,6 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
+    color: '#111827',
     marginBottom: 20,
   },
 
@@ -143,6 +321,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
   },
 
   loginText: {

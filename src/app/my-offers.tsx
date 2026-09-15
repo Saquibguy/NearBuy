@@ -1,13 +1,123 @@
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+
+const API_URL = 'http://192.168.0.101:5000';
+
+type Offer = {
+  _id: string;
+  condition: 'New' | 'Used';
+  price: number;
+  availability: string;
+  shopAddress: string;
+  message?: string;
+  status: 'Pending' | 'Accepted' | 'Rejected' | 'Not Selected';
+  createdAt: string;
+  requestId?: {
+    _id: string;
+    productName: string;
+    category: string;
+    budget: number;
+    quantity: number;
+    location: string;
+    status: string;
+  };
+};
 
 export default function MyOffersScreen() {
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadOffers = async () => {
+    try {
+      setLoading(true);
+
+      const storedUser = await AsyncStorage.getItem('loggedInUser');
+
+      if (!storedUser) {
+        Alert.alert('Error', 'Seller information not found.');
+        return;
+      }
+
+      const user = JSON.parse(storedUser);
+      const sellerId = user.id || user._id;
+
+      if (!sellerId) {
+        Alert.alert('Error', 'Seller ID not found.');
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/offers/seller/${sellerId}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to load offers');
+      }
+
+      setOffers(data.offers || []);
+    } catch (error) {
+      console.error('Load seller offers error:', error);
+
+      Alert.alert(
+        'Unable to load offers',
+        'Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOffers();
+    }, [])
+  );
+
+  const getBadgeStyle = (status: Offer['status']) => {
+    switch (status) {
+      case 'Accepted':
+        return styles.acceptedBadge;
+
+      case 'Not Selected':
+      case 'Rejected':
+        return styles.rejectedBadge;
+
+      default:
+        return styles.pendingBadge;
+    }
+  };
+
+  const getBadgeTextStyle = (status: Offer['status']) => {
+    switch (status) {
+      case 'Accepted':
+        return styles.acceptedText;
+
+      case 'Not Selected':
+      case 'Rejected':
+        return styles.rejectedText;
+
+      default:
+        return styles.pendingText;
+    }
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString();
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -28,119 +138,73 @@ export default function MyOffersScreen() {
         Track the offers you have sent to customers.
       </Text>
 
-      {/* Offer 1 */}
-
-      <View style={styles.offerCard}>
-        <View style={styles.topRow}>
-          <View style={styles.productArea}>
-            <Text style={styles.product}>
-              🎧 Bluetooth Headphones
-            </Text>
-
-            <Text style={styles.customer}>
-              Customer: Customer
-            </Text>
-          </View>
-
-          <View style={styles.pendingBadge}>
-            <Text style={styles.pendingText}>
-              Pending
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹1,650</Text>
-
-          <Text style={styles.condition}>
-            New
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.loadingText}>
+            Loading your offers...
           </Text>
         </View>
+      ) : offers.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>
+            No offers yet
+          </Text>
 
-        <Text style={styles.details}>
-          Customer budget: ₹2,000
-        </Text>
-
-        <Text style={styles.details}>
-          Sent today
-        </Text>
-      </View>
-
-      {/* Offer 2 */}
-
-      <View style={styles.offerCard}>
-        <View style={styles.topRow}>
-          <View style={styles.productArea}>
-            <Text style={styles.product}>
-              ⌨️ Wireless Keyboard
-            </Text>
-
-            <Text style={styles.customer}>
-              Customer: Customer
-            </Text>
-          </View>
-
-          <View style={styles.acceptedBadge}>
-            <Text style={styles.acceptedText}>
-              Accepted
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹1,200</Text>
-
-          <Text style={styles.condition}>
-            New
+          <Text style={styles.emptyText}>
+            Offers you send to customers will appear here.
           </Text>
         </View>
+      ) : (
+        offers.map((offer) => (
+          <View
+            key={offer._id}
+            style={styles.offerCard}
+          >
+            <View style={styles.topRow}>
+              <View style={styles.productArea}>
+                <Text style={styles.product}>
+                  {offer.requestId?.productName || 'Product Request'}
+                </Text>
 
-        <Text style={styles.details}>
-          Customer budget: ₹1,500
-        </Text>
+                <Text style={styles.customer}>
+                  Customer Request
+                </Text>
+              </View>
 
-        <Text style={styles.details}>
-          Accepted today
-        </Text>
-      </View>
+              <View style={getBadgeStyle(offer.status)}>
+                <Text style={getBadgeTextStyle(offer.status)}>
+                  {offer.status}
+                </Text>
+              </View>
+            </View>
 
-      {/* Offer 3 */}
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>
+                ₹{offer.price}
+              </Text>
 
-      <View style={styles.offerCard}>
-        <View style={styles.topRow}>
-          <View style={styles.productArea}>
-            <Text style={styles.product}>
-              🔊 Bluetooth Speaker
+              <Text style={styles.condition}>
+                {offer.condition}
+              </Text>
+            </View>
+
+            {offer.requestId && (
+              <Text style={styles.details}>
+                Customer budget: ₹{offer.requestId.budget}
+              </Text>
+            )}
+
+            <Text style={styles.details}>
+              Availability: {offer.availability}
             </Text>
 
-            <Text style={styles.customer}>
-              Customer: Customer
+            <Text style={styles.details}>
+              Sent: {formatDate(offer.createdAt)}
             </Text>
           </View>
-
-          <View style={styles.rejectedBadge}>
-            <Text style={styles.rejectedText}>
-              Not Selected
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>₹3,200</Text>
-
-          <Text style={styles.condition}>
-            New
-          </Text>
-        </View>
-
-        <Text style={styles.details}>
-          Customer budget: ₹3,000
-        </Text>
-
-        <Text style={styles.details}>
-          Sent yesterday
-        </Text>
-      </View>
+        ))
+      )}
 
       <Text style={styles.footer}>
         Keep your prices competitive to get more customers.
@@ -285,6 +349,39 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 11,
     fontWeight: '700',
+  },
+
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+
+  loadingText: {
+    marginTop: 10,
+    color: '#6B7280',
+  },
+
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 25,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
   },
 
   footer: {

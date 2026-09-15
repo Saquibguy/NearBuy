@@ -1,13 +1,141 @@
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
+const API_URL = 'http://192.168.0.101:5000';
+
 export default function MyRequestsScreen() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+
+      const userData = await AsyncStorage.getItem('loggedInUser');
+
+      if (!userData) {
+        router.replace('/customer-login');
+        return;
+      }
+
+      const user = JSON.parse(userData);
+
+      const response = await fetch(
+        `${API_URL}/api/requests/customer/${user.id}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to load requests');
+      }
+
+      setRequests(data.requests || []);
+    } catch (error) {
+      console.error('Load requests error:', error);
+
+      Alert.alert(
+        'Error',
+        'Unable to load your requests. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRequests();
+    }, [])
+  );
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return {
+          badge: styles.activeBadge,
+          text: styles.activeText,
+        };
+
+      case 'Waiting':
+        return {
+          badge: styles.waitingBadge,
+          text: styles.waitingText,
+        };
+
+      case 'Completed':
+        return {
+          badge: styles.completedBadge,
+          text: styles.completedText,
+        };
+
+      default:
+        return {
+          badge: styles.waitingBadge,
+          text: styles.waitingText,
+        };
+    }
+  };
+
+  const getOffersText = (request: any) => {
+    if (request.status === 'Completed') {
+      return 'Offer accepted';
+    }
+
+    if (request.offersCount && request.offersCount > 0) {
+      return `${request.offersCount} offers received`;
+    }
+
+    return 'No offers yet';
+  };
+
+  const getOffersStyle = (request: any) => {
+    if (request.status === 'Completed') {
+      return styles.completedOffers;
+    }
+
+    if (request.offersCount && request.offersCount > 0) {
+      return styles.offers;
+    }
+
+    return styles.waitingOffers;
+  };
+
+  const getProductEmoji = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case 'electronics':
+        return '🎧';
+
+      case 'mobile':
+      case 'mobiles':
+        return '📱';
+
+      case 'computer':
+      case 'computers':
+        return '💻';
+
+      case 'home':
+        return '🏠';
+
+      case 'fashion':
+        return '👕';
+
+      default:
+        return '📦';
+    }
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -28,135 +156,96 @@ export default function MyRequestsScreen() {
         Track products you've asked nearby shops for.
       </Text>
 
-      {/* Request 1 */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator
+            size="large"
+            color="#2563EB"
+          />
 
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push('/request-details')}
-      >
-        <View style={styles.cardTop}>
-          <Text style={styles.product}>
-            🎧 Bluetooth Headphones
+          <Text style={styles.loadingText}>
+            Loading your requests...
+          </Text>
+        </View>
+      ) : requests.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyEmoji}>📦</Text>
+
+          <Text style={styles.emptyTitle}>
+            No Requests Yet
           </Text>
 
-          <View style={styles.activeBadge}>
-            <Text style={styles.activeText}>
-              Active
+          <Text style={styles.emptyText}>
+            You haven't posted any product requests yet.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.postButton}
+            onPress={() => router.push('/post-request')}
+          >
+            <Text style={styles.postButtonText}>
+              + Post a Request
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
+      ) : (
+        requests.map((request) => {
+          const status = request.status || 'Active';
+          const statusStyle = getStatusStyle(status);
 
-        <Text style={styles.description}>
-          Wireless headphones with microphone
-        </Text>
+          return (
+            <TouchableOpacity
+              key={request._id}
+              style={styles.card}
+              onPress={() =>
+                router.push({
+                  pathname: '/request-details',
+                  params: {
+                    id: request._id,
+                  },
+                })
+              }
+            >
+              <View style={styles.cardTop}>
+                <Text style={styles.product}>
+                  {getProductEmoji(request.category)}{' '}
+                  {request.productName}
+                </Text>
 
-        <View style={styles.infoRow}>
-          <Text style={styles.info}>
-            Budget: ₹2,000
-          </Text>
+                <View style={statusStyle.badge}>
+                  <Text style={statusStyle.text}>
+                    {status}
+                  </Text>
+                </View>
+              </View>
 
-          <Text style={styles.info}>
-            Qty: 1
-          </Text>
-        </View>
+              <Text style={styles.description}>
+                {request.description}
+              </Text>
 
-        <View style={styles.bottomRow}>
-          <Text style={styles.offers}>
-            3 offers received
-          </Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.info}>
+                  Budget: ₹{request.budget}
+                </Text>
 
-          <Text style={styles.view}>
-            View →
-          </Text>
-        </View>
-      </TouchableOpacity>
+                <Text style={styles.info}>
+                  Qty: {request.quantity}
+                </Text>
+              </View>
 
-      {/* Request 2 */}
+              <View style={styles.bottomRow}>
+                <Text style={getOffersStyle(request)}>
+                  {getOffersText(request)}
+                </Text>
 
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push('/request-details')}
-      >
-        <View style={styles.cardTop}>
-          <Text style={styles.product}>
-            🔊 Bluetooth Speaker
-          </Text>
-
-          <View style={styles.waitingBadge}>
-            <Text style={styles.waitingText}>
-              Waiting
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.description}>
-          Portable speaker for home use
-        </Text>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.info}>
-            Budget: ₹3,500
-          </Text>
-
-          <Text style={styles.info}>
-            Qty: 1
-          </Text>
-        </View>
-
-        <View style={styles.bottomRow}>
-          <Text style={styles.waitingOffers}>
-            No offers yet
-          </Text>
-
-          <Text style={styles.view}>
-            View →
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      {/* Request 3 */}
-
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push('/request-details')}
-      >
-        <View style={styles.cardTop}>
-          <Text style={styles.product}>
-            ⌨️ Wireless Keyboard
-          </Text>
-
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedText}>
-              Completed
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.description}>
-          Wireless keyboard for laptop
-        </Text>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.info}>
-            Budget: ₹1,500
-          </Text>
-
-          <Text style={styles.info}>
-            Qty: 1
-          </Text>
-        </View>
-
-        <View style={styles.bottomRow}>
-          <Text style={styles.completedOffers}>
-            Offer accepted
-          </Text>
-
-          <Text style={styles.view}>
-            View →
-          </Text>
-        </View>
-      </TouchableOpacity>
-
+                <Text style={styles.view}>
+                  View →
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })
+      )}
     </ScrollView>
   );
 }
@@ -203,6 +292,61 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
 
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+
+  emptyContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 25,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginTop: 10,
+  },
+
+  emptyEmoji: {
+    fontSize: 40,
+  },
+
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 12,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+
+  postButton: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    marginTop: 18,
+  },
+
+  postButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -223,6 +367,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#111827',
+    marginRight: 10,
   },
 
   description: {

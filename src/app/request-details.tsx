@@ -1,126 +1,558 @@
-import { router } from 'expo-router';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  router,
+  useLocalSearchParams,
+} from 'expo-router';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { useEffect, useState } from 'react';
+
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
+const API_URL = 'http://192.168.0.101:5000';
+
 export default function RequestDetailsScreen() {
+  const params =
+    useLocalSearchParams<{
+      id?: string | string[];
+    }>();
+
+  const requestId = Array.isArray(params.id)
+    ? params.id[0]
+    : params.id;
+
+  const [request, setRequest] =
+    useState<any>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [cancelling, setCancelling] =
+    useState(false);
+
+  useEffect(() => {
+    loadRequest();
+  }, [requestId]);
+
+  const loadRequest = async () => {
+    if (!requestId) {
+      setLoading(false);
+
+      Alert.alert(
+        'Error',
+        'Request ID is missing.'
+      );
+
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const url =
+        `${API_URL}/api/requests/${requestId}`;
+
+      console.log(
+        'Loading request URL:',
+        url
+      );
+
+      const response =
+        await fetch(url);
+
+      console.log(
+        'Response status:',
+        response.status
+      );
+
+      console.log(
+        'Response content type:',
+        response.headers.get(
+          'content-type'
+        )
+      );
+
+      // Read response as TEXT first
+      const responseText =
+        await response.text();
+
+      console.log(
+        'Response body:',
+        responseText
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `HTTP ${response.status}: ${responseText}`
+        );
+      }
+
+      // Convert text to JSON
+      let data;
+
+      try {
+        data =
+          JSON.parse(responseText);
+      } catch (parseError) {
+        console.error(
+          'JSON parsing failed:',
+          parseError
+        );
+
+        throw new Error(
+          `Server returned non-JSON response: ${responseText.substring(
+            0,
+            200
+          )}`
+        );
+      }
+
+      console.log(
+        'Parsed request data:',
+        data
+      );
+
+      if (!data.request) {
+        throw new Error(
+          'Request data is missing from server response.'
+        );
+      }
+
+      setRequest(data.request);
+
+    } catch (error: any) {
+      console.error(
+        'Load request details error:',
+        error
+      );
+
+      Alert.alert(
+        'Error',
+        error?.message ||
+          'Unable to load request details.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelRequest = () => {
+    if (!request?._id) {
+      return;
+    }
+
+    Alert.alert(
+      'Cancel Request',
+      'Are you sure you want to cancel this request?',
+      [
+        {
+          text: 'No',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: cancelRequest,
+        },
+      ]
+    );
+  };
+
+  const cancelRequest = async () => {
+    if (!request?._id) {
+      return;
+    }
+
+    try {
+      setCancelling(true);
+
+      const response =
+        await fetch(
+          `${API_URL}/api/requests/${request._id}/cancel`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+          }
+        );
+
+      const responseText =
+        await response.text();
+
+      let data;
+
+      try {
+        data =
+          JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          'Server returned an invalid response.'
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            'Unable to cancel request.'
+        );
+      }
+
+      setRequest(data.request);
+
+      Alert.alert(
+        'Request Cancelled',
+        'Your request has been cancelled successfully.'
+      );
+
+    } catch (error: any) {
+      console.error(
+        'Cancel request error:',
+        error
+      );
+
+      Alert.alert(
+        'Error',
+        error?.message ||
+          'Unable to cancel request.'
+      );
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleViewOffers = () => {
+    if (!request?._id) {
+      Alert.alert(
+        'Error',
+        'Request ID is missing.'
+      );
+      return;
+    }
+
+    router.push({
+      pathname: '/offers',
+      params: {
+        requestId: request._id,
+      },
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator
+          size="large"
+          color="#2563EB"
+        />
+
+        <Text style={styles.loadingText}>
+          Loading request details...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!request) {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>
+            ‹ Back
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>
+            Unable to load request
+          </Text>
+
+          <Text style={styles.errorText}>
+            The request details could not
+            be loaded.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={loadRequest}
+          >
+            <Text style={styles.retryText}>
+              Try Again
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.backButton}
+    <View style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={
+          styles.scrollContent
+        }
       >
-        <Text style={styles.backText}>‹ Back</Text>
-      </TouchableOpacity>
+        {/* Back Button */}
 
-      <Text style={styles.logo}>NearBuy</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>
+            ‹ Back
+          </Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>Request Details</Text>
+        {/* Header */}
 
-      {/* Product */}
-
-      <View style={styles.card}>
-        <Text style={styles.label}>PRODUCT</Text>
-
-        <Text style={styles.product}>
-          🎧 Bluetooth Headphones
+        <Text style={styles.title}>
+          Request Details
         </Text>
 
-        <Text style={styles.description}>
-          Wireless headphones with microphone
-        </Text>
-      </View>
-
-      {/* Request Information */}
-
-      <View style={styles.card}>
-        <Text style={styles.label}>REQUEST INFORMATION</Text>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Budget</Text>
-          <Text style={styles.infoValue}>₹2,000</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Quantity</Text>
-          <Text style={styles.infoValue}>1</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Category</Text>
-          <Text style={styles.infoValue}>Electronics</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Location</Text>
-          <Text style={styles.infoValue}>Andheri West</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Posted</Text>
-          <Text style={styles.infoValue}>Today</Text>
-        </View>
-      </View>
-
-      {/* Status */}
-
-      <View style={styles.statusCard}>
-        <Text style={styles.statusTitle}>
-          Request Status
+        <Text style={styles.subtitle}>
+          View the details of your product
+          request
         </Text>
 
-        <View style={styles.statusRow}>
-          <View style={styles.dotActive} />
+        {/* Product Card */}
 
-          <Text style={styles.statusText}>
-            3 offers received
+        <View style={styles.card}>
+          <Text style={styles.productName}>
+            {request.productName ||
+              'Product'}
+          </Text>
+
+          <View style={styles.statusRow}>
+            <View
+              style={[
+                styles.statusBadge,
+                request.status ===
+                  'Cancelled'
+                  ? styles.cancelledBadge
+                  : styles.activeBadge,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  request.status ===
+                    'Cancelled'
+                    ? styles.cancelledText
+                    : styles.activeText,
+                ]}
+              >
+                {request.status ||
+                  'Active'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Request Information */}
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>
+            Request Information
+          </Text>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Category
+            </Text>
+
+            <Text style={styles.value}>
+              {request.category ||
+                'Not specified'}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Budget
+            </Text>
+
+            <Text style={styles.budgetValue}>
+              ₹{request.budget || 0}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Quantity
+            </Text>
+
+            <Text style={styles.value}>
+              {request.quantity || 1}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Condition
+            </Text>
+
+            <Text style={styles.value}>
+              {request.condition ||
+                'New'}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Location
+            </Text>
+
+            <Text
+              style={[
+                styles.value,
+                styles.locationValue,
+              ]}
+            >
+              {request.location ||
+                'Not specified'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Description */}
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>
+            Description
+          </Text>
+
+          <Text style={styles.description}>
+            {request.description ||
+              'No description provided.'}
           </Text>
         </View>
 
-        <Text style={styles.statusDescription}>
-          Nearby shops have responded to your request.
-        </Text>
-      </View>
+        {/* Posted Information */}
 
-      {/* View Offers */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>
+            Request Information
+          </Text>
 
-      <TouchableOpacity
-        style={styles.offerButton}
-        onPress={() => router.push('/offers')}
-      >
-        <Text style={styles.offerButtonText}>
-          View All Offers
-        </Text>
-      </TouchableOpacity>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Posted
+            </Text>
 
-      {/* Cancel */}
+            <Text style={styles.value}>
+              {request.createdAt
+                ? new Date(
+                    request.createdAt
+                  ).toLocaleDateString()
+                : 'Not available'}
+            </Text>
+          </View>
 
-      <TouchableOpacity style={styles.cancelButton}>
-        <Text style={styles.cancelText}>
-          Cancel Request
-        </Text>
-      </TouchableOpacity>
+          <View style={styles.divider} />
 
-    </ScrollView>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Request ID
+            </Text>
+
+            <Text
+              style={[
+                styles.value,
+                styles.requestId,
+              ]}
+              numberOfLines={1}
+            >
+              {request._id}
+            </Text>
+          </View>
+        </View>
+
+        {/* Offers Button */}
+
+        {request.status !==
+          'Cancelled' && (
+          <TouchableOpacity
+            style={styles.offersButton}
+            onPress={handleViewOffers}
+          >
+            <Text style={styles.offersButtonText}>
+              View All Offers
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Cancel Button */}
+
+        {request.status ===
+          'Active' && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={
+              handleCancelRequest
+            }
+            disabled={cancelling}
+          >
+            {cancelling ? (
+              <ActivityIndicator
+                color="#DC2626"
+              />
+            ) : (
+              <Text
+                style={styles.cancelButtonText}
+              >
+                Cancel Request
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FC',
+    backgroundColor: '#F8FAFC',
   },
 
-  content: {
-    padding: 24,
-    paddingBottom: 50,
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: '#64748B',
   },
 
   backButton: {
@@ -134,133 +566,185 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  logo: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#2563EB',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#0F172A',
   },
 
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 25,
-    marginBottom: 22,
+  subtitle: {
+    fontSize: 15,
+    color: '#64748B',
+    marginTop: 6,
+    marginBottom: 20,
   },
 
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
 
-  label: {
-    fontSize: 11,
+  productName: {
+    fontSize: 22,
     fontWeight: '700',
-    color: '#6B7280',
-    letterSpacing: 1,
-  },
-
-  product: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 10,
-  },
-
-  description: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 7,
-    lineHeight: 20,
-  },
-
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-
-  infoLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-
-  statusCard: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
-  },
-
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
+    color: '#0F172A',
+    marginBottom: 12,
   },
 
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
   },
 
-  dotActive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#16A34A',
-    marginRight: 9,
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+
+  activeBadge: {
+    backgroundColor: '#DCFCE7',
+  },
+
+  cancelledBadge: {
+    backgroundColor: '#FEE2E2',
   },
 
   statusText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#16A34A',
-  },
-
-  statusDescription: {
     fontSize: 13,
-    color: '#6B7280',
-    marginTop: 8,
-    lineHeight: 19,
+    fontWeight: '600',
   },
 
-  offerButton: {
-    height: 54,
+  activeText: {
+    color: '#15803D',
+  },
+
+  cancelledText: {
+    color: '#DC2626',
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 15,
+  },
+
+  label: {
+    fontSize: 14,
+    color: '#64748B',
+    flex: 1,
+  },
+
+  value: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+    flex: 1.5,
+    textAlign: 'right',
+  },
+
+  budgetValue: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#2563EB',
+    flex: 1.5,
+    textAlign: 'right',
+  },
+
+  locationValue: {
+    lineHeight: 20,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 14,
+  },
+
+  description: {
+    fontSize: 15,
+    lineHeight: 23,
+    color: '#475569',
+  },
+
+  requestId: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+
+  offersButton: {
     backgroundColor: '#2563EB',
     borderRadius: 12,
-    justifyContent: 'center',
+    paddingVertical: 15,
     alignItems: 'center',
+    marginBottom: 12,
   },
 
-  offerButtonText: {
+  offersButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
 
   cancelButton: {
-    height: 50,
-    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DC2626',
+    borderRadius: 12,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 8,
   },
 
-  cancelText: {
-    color: '#EF4444',
-    fontSize: 14,
+  cancelButtonText: {
+    color: '#DC2626',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+
+  errorTitle: {
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+
+  errorText: {
+    fontSize: 15,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+
+  retryButton: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '600',
   },
 });

@@ -19,10 +19,11 @@ export default function SellerRegisterScreen() {
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
   const [address, setAddress] = useState('');
+  const [openingHours, setOpeningHours] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleRegister = () => {
+    const handleRegister = async () => {
     const cleanShopName = shopName.trim();
     const cleanOwnerName = ownerName.trim();
     const cleanCategory = category.trim();
@@ -112,6 +113,11 @@ export default function SellerRegisterScreen() {
       return;
     }
 
+    if (!openingHours.trim()) {
+  Alert.alert('Required', 'Please enter your opening hours.');
+  return;
+}
+
     if (password !== confirmPassword) {
       Alert.alert(
         'Password Mismatch',
@@ -120,10 +126,60 @@ export default function SellerRegisterScreen() {
       return;
     }
 
+   try {
+  const response = await fetch(
+    'http://192.168.0.101:5000/api/auth/register',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+  name: cleanOwnerName,
+  email: cleanEmail,
+  phone: phone,
+  password: password,
+  role: 'seller',
+
+  shopName: cleanShopName,
+  category: cleanCategory,
+  area: cleanArea,
+  city: cleanCity,
+  pincode: pincode,
+  address: cleanAddress,
+  openingHours: openingHours.trim(),
+}),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
     Alert.alert(
-      'Success',
-      'Shop registration details are valid!'
+      'Registration Failed',
+      data.message || 'Unable to register seller.'
     );
+    return;
+  }
+
+  Alert.alert(
+    'Registration Successful',
+    'Your seller account has been created successfully.',
+    [
+      {
+        text: 'OK',
+        onPress: () => router.replace('/seller-login'),
+      },
+    ]
+  );
+} catch (error) {
+  console.error('Seller registration error:', error);
+
+  Alert.alert(
+    'Connection Error',
+    'Unable to connect to the NearBuy server.'
+  );
+}
   };
 
   return (
@@ -265,6 +321,17 @@ export default function SellerRegisterScreen() {
         multiline
         textAlignVertical="top"
       />
+
+      <Text style={styles.label}>Opening Hours</Text>
+<TextInput
+  style={styles.input}
+  placeholder="e.g. 10 AM - 9 PM"
+  placeholderTextColor="#9CA3AF"
+  value={openingHours}
+  onChangeText={setOpeningHours}
+  autoCapitalize="none"
+  maxLength={50}
+/>
 
       <Text style={styles.sectionTitle}>
         Account Security

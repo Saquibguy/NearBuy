@@ -1,18 +1,47 @@
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function SellerProfileScreen() {
+  const [seller, setSeller] = useState<any>(null);
+
+  useEffect(() => {
+    const loadSeller = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('loggedInUser');
+
+        if (userData) {
+          setSeller(JSON.parse(userData));
+        }
+      } catch (error) {
+        console.error('Failed to load seller profile:', error);
+      }
+    };
+
+    loadSeller();
+  }, []);
+
+  const shopLocation = seller
+    ? `${seller.area || ''}${
+        seller.area && seller.city ? ', ' : ''
+      }${seller.city || ''}${
+        seller.pincode ? ` - ${seller.pincode}` : ''
+      }`
+    : 'Not available';
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
     >
+      {/* Back Button */}
       <TouchableOpacity
         onPress={() => router.back()}
         style={styles.backButton}
@@ -21,9 +50,9 @@ export default function SellerProfileScreen() {
       </TouchableOpacity>
 
       <Text style={styles.logo}>NearBuy</Text>
-
       <Text style={styles.title}>Shop Profile</Text>
 
+      {/* Shop Header */}
       <View style={styles.profileCard}>
         <View style={styles.shopIcon}>
           <Text style={styles.shopIconText}>🏪</Text>
@@ -31,78 +60,87 @@ export default function SellerProfileScreen() {
 
         <View style={styles.profileInfo}>
           <Text style={styles.shopName}>
-            City Tech Store
+            {seller?.shopName || 'Shop Name'}
           </Text>
 
           <Text style={styles.category}>
-            Electronics
+            {seller?.category || 'Category'}
           </Text>
 
           <Text style={styles.rating}>
-            ★ 4.5 • 128 reviews
+            ★ {seller?.rating ?? 0} • {seller?.reviewCount ?? 0} reviews
           </Text>
         </View>
       </View>
 
+      {/* Shop Information */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>
-          SHOP INFORMATION
-        </Text>
+        <Text style={styles.sectionTitle}>SHOP INFORMATION</Text>
 
         <View style={styles.row}>
           <Text style={styles.label}>Shop Name</Text>
           <Text style={styles.value}>
-            City Tech Store
+            {seller?.shopName || 'Not available'}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>Category</Text>
           <Text style={styles.value}>
-            Electronics
+            {seller?.category || 'Not available'}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>Phone</Text>
           <Text style={styles.value}>
-            +91 98765 43210
+            {seller?.phone || 'Not available'}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>Location</Text>
           <Text style={styles.value}>
-            Andheri West
+            {shopLocation}
+          </Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Address</Text>
+          <Text style={styles.value}>
+            {seller?.address || 'Not available'}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.label}>Opening Hours</Text>
           <Text style={styles.value}>
-            10 AM - 9 PM
+            {seller?.openingHours || 'Not available'}
           </Text>
         </View>
       </View>
 
+      {/* Shop Management */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>
-          SHOP MANAGEMENT
-        </Text>
+        <Text style={styles.sectionTitle}>SHOP MANAGEMENT</Text>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/edit-shop-details')}
+        >
           <Text style={styles.menuText}>
             ✏️ Edit Shop Details
           </Text>
-
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/shop-location')}
+        >
           <Text style={styles.menuText}>
             📍 Shop Location
           </Text>
-
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
 
@@ -113,23 +151,29 @@ export default function SellerProfileScreen() {
           <Text style={styles.menuText}>
             💰 My Offers
           </Text>
-
           <Text style={styles.arrow}>›</Text>
         </TouchableOpacity>
       </View>
 
+              <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/change-password')}
+        >
+          <Text style={styles.menuText}>
+            🔐 Change Password
+          </Text>
+          <Text style={styles.arrow}>›</Text>
+        </TouchableOpacity>
+
+      {/* Logout */}
       <TouchableOpacity
         style={styles.logoutButton}
         onPress={() => router.replace('/role')}
       >
-        <Text style={styles.logoutText}>
-          Logout
-        </Text>
+        <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
 
-      <Text style={styles.version}>
-        NearBuy v1.0
-      </Text>
+      <Text style={styles.version}>NearBuy v1.0</Text>
     </ScrollView>
   );
 }
@@ -137,12 +181,12 @@ export default function SellerProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FC',
+    backgroundColor: '#F8FAFC',
   },
 
   content: {
-    padding: 24,
-    paddingBottom: 50,
+    padding: 20,
+    paddingBottom: 40,
   },
 
   backButton: {
@@ -157,145 +201,138 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '800',
     color: '#2563EB',
+    marginBottom: 5,
   },
 
   title: {
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#111827',
-    marginTop: 25,
-    marginBottom: 22,
+    marginBottom: 20,
   },
 
   profileCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
 
   shopIcon: {
     width: 65,
     height: 65,
     borderRadius: 33,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 15,
   },
 
   shopIconText: {
-    fontSize: 30,
+    fontSize: 32,
   },
 
   profileInfo: {
-    marginLeft: 15,
     flex: 1,
   },
 
   shopName: {
-    fontSize: 19,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#111827',
   },
 
   category: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
   },
 
   rating: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#F59E0B',
-    fontWeight: '700',
-    marginTop: 5,
+    marginTop: 6,
+    fontWeight: '600',
   },
 
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 18,
+    padding: 20,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginBottom: 16,
   },
 
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '700',
     color: '#6B7280',
-    letterSpacing: 1,
-    marginBottom: 8,
+    marginBottom: 15,
+    letterSpacing: 0.5,
   },
 
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    marginBottom: 15,
   },
 
   label: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
+    marginBottom: 4,
   },
 
   value: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
     color: '#111827',
-    maxWidth: '60%',
-    textAlign: 'right',
+    fontWeight: '500',
   },
 
   menuItem: {
-    minHeight: 52,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
 
   menuText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '500',
   },
 
   arrow: {
-    fontSize: 22,
+    fontSize: 24,
     color: '#9CA3AF',
   },
 
   logoutButton: {
-    height: 52,
+    backgroundColor: '#FEE2E2',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    justifyContent: 'center',
+    paddingVertical: 14,
     alignItems: 'center',
     marginTop: 5,
   },
 
   logoutText: {
-    color: '#EF4444',
-    fontSize: 15,
+    color: '#DC2626',
+    fontSize: 16,
     fontWeight: '700',
   },
 
   version: {
     textAlign: 'center',
     color: '#9CA3AF',
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 20,
   },
 });

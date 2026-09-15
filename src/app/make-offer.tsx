@@ -1,183 +1,395 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-
+import { router, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
-export default function MakeOfferScreen() {
+const API_URL = 'http://192.168.0.101:5000';
+
+export default function MakeOffer() {
+  const { requestId } = useLocalSearchParams<{
+    requestId: string;
+  }>();
+
+  const [request, setRequest] = useState<any>(null);
   const [condition, setCondition] = useState('New');
-  const submitOffer = () => {
-    Alert.alert(
-      'Offer Sent!',
-      'Your offer has been sent to the customer.',
-      [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/seller-home'),
-        },
-      ]
-    );
+  const [price, setPrice] = useState('');
+  const [availability, setAvailability] = useState('');
+  const [shopAddress, setShopAddress] = useState('');
+  const [message, setMessage] = useState('');
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (requestId) {
+      loadRequest();
+    }
+  }, [requestId]);
+
+  const loadRequest = async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/requests/${requestId}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || 'Failed to load request'
+        );
+      }
+
+      setRequest(data.request);
+    } catch (error) {
+      console.error('Load request error:', error);
+
+      Alert.alert(
+        'Error',
+        'Unable to load customer request.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.backButton}
-      >
-        <Text style={styles.backText}>‹ Back</Text>
-      </TouchableOpacity>
+  const handleSendOffer = async () => {
+    if (!price.trim()) {
+      Alert.alert('Required', 'Please enter your offer price.');
+      return;
+    }
 
-      <Text style={styles.logo}>NearBuy</Text>
+    const numericPrice = Number(price);
 
-      <Text style={styles.title}>Make an Offer</Text>
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      Alert.alert(
+        'Invalid Price',
+        'Please enter a valid offer price.'
+      );
+      return;
+    }
 
-      <Text style={styles.subtitle}>
-        Send your best offer to the customer.
-      </Text>
+    if (!availability.trim()) {
+      Alert.alert(
+        'Required',
+        'Please enter product availability.'
+      );
+      return;
+    }
 
-      {/* Customer Request */}
+    if (!shopAddress.trim()) {
+      Alert.alert(
+        'Required',
+        'Please enter your pickup/shop address.'
+      );
+      return;
+    }
 
-      <View style={styles.requestCard}>
-        <Text style={styles.requestLabel}>
-          CUSTOMER REQUEST
+    try {
+      setSubmitting(true);
+
+      const userData = await AsyncStorage.getItem(
+        'loggedInUser'
+      );
+
+      if (!userData) {
+        Alert.alert(
+          'Login Required',
+          'Please login again.'
+        );
+        router.replace('/seller-login');
+        return;
+      }
+
+      const seller = JSON.parse(userData);
+
+      // Offer API will be connected here next.
+      // For now we validate the complete form.
+
+     const response = await fetch(`${API_URL}/api/offers`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    requestId,
+    sellerId: seller.id,
+    condition,
+    price: numericPrice,
+    availability: availability.trim(),
+    shopAddress: shopAddress.trim(),
+    message: message.trim(),
+  }),
+});
+
+const data = await response.json();
+
+if (!response.ok) {
+  throw new Error(
+    data.message || 'Failed to submit offer'
+  );
+}
+
+Alert.alert(
+  'Offer Sent!',
+  'Your offer has been submitted successfully.',
+  [
+    {
+      text: 'OK',
+      onPress: () => {
+        router.replace('/seller-home');
+      },
+    },
+  ]
+);
+    } catch (error) {
+      console.error('Send offer error:', error);
+
+      Alert.alert(
+        'Error',
+        'Something went wrong. Please try again.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator
+          size="large"
+          color="#2563EB"
+        />
+
+        <Text style={styles.loadingText}>
+          Loading request...
         </Text>
-
-        <Text style={styles.product}>
-          🎧 Bluetooth Headphones
-        </Text>
-
-        <Text style={styles.requestText}>
-          Wireless headphones with microphone
-        </Text>
-
-        <View style={styles.row}>
-          <Text style={styles.info}>
-            Customer Budget
-          </Text>
-
-          <Text style={styles.budget}>
-            ₹2,000
-          </Text>
-        </View>
       </View>
+    );
+  }
 
-      {/* Offer Form */}
-
-      <Text style={styles.label}>Your Price</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your price"
-        placeholderTextColor="#9CA3AF"
-        keyboardType="numeric"
-      />
-
-      <Text style={styles.label}>Product Condition</Text>
-
-      <View style={styles.conditionRow}>
-
-  <TouchableOpacity
-    style={
-      condition === 'New'
-        ? styles.conditionSelected
-        : styles.condition
-    }
-    onPress={() => setCondition('New')}
-  >
-    <Text
-      style={
-        condition === 'New'
-          ? styles.conditionSelectedText
-          : styles.conditionText
-      }
-    >
-      New
-    </Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={
-      condition === 'Used'
-        ? styles.conditionSelected
-        : styles.condition
-    }
-    onPress={() => setCondition('Used')}
-  >
-    <Text
-      style={
-        condition === 'Used'
-          ? styles.conditionSelectedText
-          : styles.conditionText
-      }
-    >
-      Used
-    </Text>
-  </TouchableOpacity>
-
-    </View>
-
-      <Text style={styles.label}>Availability</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. Available today"
-        placeholderTextColor="#9CA3AF"
-      />
-
-      <Text style={styles.label}>Pickup / Shop Address</Text>
-
-      <TextInput
-        style={[styles.input, styles.addressInput]}
-        placeholder="Enter your shop address"
-        placeholderTextColor="#9CA3AF"
-        multiline
-      />
-
-      <Text style={styles.label}>Message to Customer</Text>
-
-      <TextInput
-        style={[styles.input, styles.messageInput]}
-        placeholder="Add a short message..."
-        placeholderTextColor="#9CA3AF"
-        multiline
-      />
-
-      <TouchableOpacity
-        style={styles.submitButton}
-        onPress={submitOffer}
-      >
-        <Text style={styles.submitText}>
-          Send Offer
+  if (!request) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>
+          Request not found.
         </Text>
-      </TouchableOpacity>
 
-      <Text style={styles.note}>
-        Your offer will be visible to the customer.
-      </Text>
-    </ScrollView>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>‹ Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Back Button */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>‹ Back</Text>
+        </TouchableOpacity>
+
+        {/* Header */}
+        <Text style={styles.title}>
+          Make an Offer
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Submit your offer for this customer request
+        </Text>
+
+        {/* Request Card */}
+        <View style={styles.requestCard}>
+          <Text style={styles.productEmoji}>🎧</Text>
+
+          <View style={styles.requestInfo}>
+            <Text style={styles.productName}>
+              {request.productName}
+            </Text>
+
+            <Text style={styles.category}>
+              {request.category}
+            </Text>
+
+            <Text style={styles.budget}>
+              Customer Budget: ₹{request.budget}
+            </Text>
+          </View>
+        </View>
+
+        {/* Condition */}
+        <View style={styles.section}>
+          <Text style={styles.label}>
+            Product Condition
+          </Text>
+
+          <View style={styles.conditionRow}>
+            <TouchableOpacity
+              style={[
+                styles.conditionButton,
+                condition === 'New' &&
+                  styles.conditionButtonActive,
+              ]}
+              onPress={() => setCondition('New')}
+            >
+              <Text
+                style={[
+                  styles.conditionText,
+                  condition === 'New' &&
+                    styles.conditionTextActive,
+                ]}
+              >
+                New
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.conditionButton,
+                condition === 'Used' &&
+                  styles.conditionButtonActive,
+              ]}
+              onPress={() => setCondition('Used')}
+            >
+              <Text
+                style={[
+                  styles.conditionText,
+                  condition === 'Used' &&
+                    styles.conditionTextActive,
+                ]}
+              >
+                Used
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Price */}
+        <View style={styles.section}>
+          <Text style={styles.label}>
+            Your Offer Price
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your price"
+            placeholderTextColor="#94A3B8"
+            keyboardType="numeric"
+            value={price}
+            onChangeText={setPrice}
+            editable={!submitting}
+          />
+        </View>
+
+        {/* Availability */}
+        <View style={styles.section}>
+          <Text style={styles.label}>
+            Availability
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Available today"
+            placeholderTextColor="#94A3B8"
+            value={availability}
+            onChangeText={setAvailability}
+            editable={!submitting}
+          />
+        </View>
+
+        {/* Shop Address */}
+        <View style={styles.section}>
+          <Text style={styles.label}>
+            Pickup / Shop Address
+          </Text>
+
+          <TextInput
+            style={[
+              styles.input,
+              styles.multilineInput,
+            ]}
+            placeholder="Enter your shop address"
+            placeholderTextColor="#94A3B8"
+            value={shopAddress}
+            onChangeText={setShopAddress}
+            multiline
+            editable={!submitting}
+          />
+        </View>
+
+        {/* Message */}
+        <View style={styles.section}>
+          <Text style={styles.label}>
+            Message to Customer
+          </Text>
+
+          <TextInput
+            style={[
+              styles.input,
+              styles.multilineInput,
+            ]}
+            placeholder="Add a message (optional)"
+            placeholderTextColor="#94A3B8"
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            editable={!submitting}
+          />
+        </View>
+
+        {/* Send Offer */}
+        <TouchableOpacity
+          style={[
+            styles.offerButton,
+            submitting && styles.disabledButton,
+          ]}
+          onPress={handleSendOffer}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.offerButtonText}>
+              Send Offer
+            </Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FC',
+    backgroundColor: '#F8FAFC',
   },
 
-  content: {
-    padding: 24,
-    paddingBottom: 50,
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
 
   backButton: {
@@ -186,160 +398,153 @@ const styles = StyleSheet.create({
   },
 
   backText: {
-    fontSize: 17,
     color: '#2563EB',
+    fontSize: 17,
     fontWeight: '600',
   },
 
-  logo: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#2563EB',
-  },
-
   title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 25,
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#0F172A',
   },
 
   subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginTop: 8,
-    marginBottom: 25,
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 5,
+    marginBottom: 20,
   },
 
   requestCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 18,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 25,
-  },
-
-  requestLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6B7280',
-    letterSpacing: 1,
-  },
-
-  product: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 10,
-  },
-
-  requestText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 7,
-  },
-
-  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 18,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
 
-  info: {
-    fontSize: 14,
-    color: '#6B7280',
+  productEmoji: {
+    fontSize: 40,
+    marginRight: 14,
+  },
+
+  requestInfo: {
+    flex: 1,
+  },
+
+  productName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+
+  category: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 3,
   },
 
   budget: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-  },
-
-  label: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#374151',
-    marginBottom: 8,
+    fontWeight: '600',
+    color: '#2563EB',
     marginTop: 8,
   },
 
-  input: {
-    height: 52,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111827',
-    marginBottom: 18,
+  section: {
+    marginTop: 20,
+  },
+
+  label: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 8,
   },
 
   conditionRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 18,
   },
 
-  conditionSelected: {
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    backgroundColor: '#2563EB',
-    borderRadius: 10,
-  },
-
-  conditionSelectedText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-
-  condition: {
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+  conditionButton: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#CBD5E1',
+    borderRadius: 9,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+
+  conditionButtonActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#2563EB',
   },
 
   conditionText: {
-    color: '#374151',
+    color: '#475569',
+    fontSize: 14,
     fontWeight: '600',
   },
 
-  addressInput: {
-    height: 90,
-    textAlignVertical: 'top',
-    paddingTop: 14,
+  conditionTextActive: {
+    color: '#2563EB',
   },
 
-  messageInput: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingTop: 14,
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#0F172A',
   },
 
-  submitButton: {
-    height: 54,
+  multilineInput: {
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+
+  offerButton: {
     backgroundColor: '#2563EB',
-    borderRadius: 12,
-    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 9,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 28,
   },
 
-  submitText: {
+  disabledButton: {
+    opacity: 0.7,
+  },
+
+  offerButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 
-  note: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 15,
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+
+  loadingText: {
+    marginTop: 12,
+    color: '#64748B',
+    fontSize: 15,
+  },
+
+  errorText: {
+    fontSize: 17,
+    color: '#475569',
+    marginBottom: 15,
   },
 });
