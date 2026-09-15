@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.0.101:5000';
+const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 export default function OffersScreen() {
   const { requestId } = useLocalSearchParams<{

@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.0.101:5000';
+const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 export default function SellerHome() {
   const [shopName, setShopName] = useState('Seller');

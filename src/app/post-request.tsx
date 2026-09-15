@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -198,7 +198,7 @@ export default function PostRequestScreen() {
 
       // Send request to backend
       const response = await fetch(
-        'http://192.168.0.101:5000/api/requests',
+        'https://nearbuy-backend-gzbq.onrender.com/api/requests',
         {
           method: 'POST',
           headers: {

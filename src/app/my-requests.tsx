@@ -1,7 +1,6 @@
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.0.101:5000';
+const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 export default function MyRequestsScreen() {
   const [requests, setRequests] = useState<any[]>([]);

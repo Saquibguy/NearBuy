@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
 
 export default function SellerRegisterScreen() {
@@ -128,7 +128,7 @@ export default function SellerRegisterScreen() {
 
    try {
   const response = await fetch(
-    'http://192.168.0.101:5000/api/auth/register',
+    'https://nearbuy-backend-gzbq.onrender.com/api/auth/register',
     {
       method: 'POST',
       headers: {

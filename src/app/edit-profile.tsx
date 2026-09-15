@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -170,7 +170,7 @@ export default function EditProfileScreen() {
     try {
       // Update customer in MongoDB
       const response = await fetch(
-        `http://192.168.0.101:5000/api/auth/customer/${userId}`,
+        `https://nearbuy-backend-gzbq.onrender.com/api/auth/customer/${userId}`,
         {
           method: 'PUT',
           headers: {

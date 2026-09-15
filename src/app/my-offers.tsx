@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,9 +10,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 
-const API_URL = 'http://192.168.0.101:5000';
+const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 type Offer = {
   _id: string;

@@ -14,7 +14,7 @@ import {
 
 import { useState } from 'react';
 
-const API_URL = 'http://192.168.0.101:5000';
+const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 export default function CustomerLoginScreen() {
   const [email, setEmail] = useState('');

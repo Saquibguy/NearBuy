@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 import { useState } from 'react';
 
 import {
@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.0.101:5000';
+const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 export default function CustomerRegisterScreen() {
   const [name, setName] = useState('');

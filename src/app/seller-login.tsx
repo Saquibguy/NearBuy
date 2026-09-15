@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-const API_URL = 'http://192.168.0.101:5000';
+const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 export default function SellerLoginScreen() {
   const [email, setEmail] = useState('');
