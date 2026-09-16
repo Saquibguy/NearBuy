@@ -18,6 +18,29 @@ function App() {
   const [apiStatus, setApiStatus] = useState('Not checked');
   const [apiChecking, setApiChecking] = useState(false);
 
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const [currentEmail, setCurrentEmail] = useState(() => {
+    try {
+      const savedAdmin = JSON.parse(
+        localStorage.getItem('adminUser') || '{}'
+      );
+      return savedAdmin.email || '';
+    } catch (error) {
+      return '';
+    }
+  });
+  const [newEmail, setNewEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customersError, setCustomersError] = useState('');
@@ -956,6 +979,152 @@ function App() {
     }
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordMessage('');
+    setPasswordError('');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Please fill in all password fields.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError('New password must be different from current password.');
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+
+      const savedAdmin = JSON.parse(
+        localStorage.getItem('adminUser') || '{}'
+      );
+      const userId = savedAdmin.id || savedAdmin._id;
+
+      if (!userId) {
+        throw new Error('Admin user information is missing. Please log in again.');
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/auth/change-password`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            currentPassword,
+            newPassword,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || 'Unable to change password.');
+      }
+
+      setPasswordMessage(data.message || 'Password changed successfully.');
+      setTimeout(() => setPasswordMessage(''), 3000);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      setPasswordError(error.message);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleChangeEmail = async (e) => {
+    e.preventDefault();
+    setEmailMessage('');
+    setEmailError('');
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmedCurrentEmail = currentEmail.trim();
+    const trimmedNewEmail = newEmail.trim();
+
+    if (!trimmedCurrentEmail || !trimmedNewEmail || !emailPassword) {
+      setEmailError('Please fill in all email fields.');
+      return;
+    }
+
+    if (!emailPattern.test(trimmedNewEmail)) {
+      setEmailError('Please enter a valid new email address.');
+      return;
+    }
+
+    if (trimmedCurrentEmail.toLowerCase() === trimmedNewEmail.toLowerCase()) {
+      setEmailError('New email must be different from current email.');
+      return;
+    }
+
+    try {
+      setEmailLoading(true);
+
+      const savedAdmin = JSON.parse(
+        localStorage.getItem('adminUser') || '{}'
+      );
+      const userId = savedAdmin.id || savedAdmin._id;
+
+      if (!userId) {
+        throw new Error('Admin user information is missing. Please log in again.');
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/auth/change-email`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            currentEmail: trimmedCurrentEmail,
+            newEmail: trimmedNewEmail,
+            password: emailPassword,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || 'Unable to change email.');
+      }
+
+      const updatedAdmin = data.user || {
+        ...savedAdmin,
+        email: trimmedNewEmail.toLowerCase(),
+      };
+
+      localStorage.setItem('adminUser', JSON.stringify(updatedAdmin));
+      setCurrentEmail(updatedAdmin.email || trimmedNewEmail);
+      setNewEmail('');
+      setEmailPassword('');
+      setEmailMessage(data.message || 'Email changed successfully.');
+      setTimeout(() => setEmailMessage(''), 3000);
+    } catch (error) {
+      setEmailError(error.message);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
   const renderSettings = () => {
     let savedAdmin = {};
 
@@ -972,7 +1141,7 @@ function App() {
         <div className="page-header">
           <div>
             <h1>Settings</h1>
-            <p>Manage your admin panel information.</p>
+            <p>Manage your admin panel information and account security.</p>
           </div>
         </div>
 
@@ -993,7 +1162,7 @@ function App() {
 
             <div className="settings-row">
               <span>Email</span>
-              <strong>{savedAdmin.email || email || 'admin@nearbuy.com'}</strong>
+              <strong>{savedAdmin.email || currentEmail || 'admin@nearbuy.com'}</strong>
             </div>
 
             <div className="settings-row">
@@ -1013,7 +1182,13 @@ function App() {
 
             <div className="settings-row">
               <span>API Status</span>
-              <strong className={apiStatus === 'Connected' ? 'settings-success' : 'settings-muted'}>
+              <strong
+                className={
+                  apiStatus === 'Connected'
+                    ? 'settings-success'
+                    : 'settings-muted'
+                }
+              >
                 {apiStatus}
               </strong>
             </div>
@@ -1055,6 +1230,122 @@ function App() {
               <span>Version</span>
               <strong>1.0.0</strong>
             </div>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon">🔒</div>
+              <div>
+                <h2>Change Password</h2>
+                <p>Update your administrator password</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangePassword}>
+              <div className="form-group">
+                <label>Current Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Confirm New Password</label>
+                <input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+
+              {passwordError && (
+                <div className="login-error">{passwordError}</div>
+              )}
+
+              {passwordMessage && (
+                <div className="settings-success">{passwordMessage}</div>
+              )}
+
+              <button
+                type="submit"
+                className="login-button"
+                disabled={passwordLoading}
+              >
+                {passwordLoading ? 'Updating...' : 'Change Password'}
+              </button>
+            </form>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon">✉️</div>
+              <div>
+                <h2>Change Email</h2>
+                <p>Update your administrator email address</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangeEmail}>
+              <div className="form-group">
+                <label>Current Email</label>
+                <input
+                  type="email"
+                  placeholder="Enter current email"
+                  value={currentEmail}
+                  onChange={(e) => setCurrentEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>New Email</label>
+                <input
+                  type="email"
+                  placeholder="Enter new email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter account password"
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                />
+              </div>
+
+              {emailError && (
+                <div className="login-error">{emailError}</div>
+              )}
+
+              {emailMessage && (
+                <div className="settings-success">{emailMessage}</div>
+              )}
+
+              <button
+                type="submit"
+                className="login-button"
+                disabled={emailLoading}
+              >
+                {emailLoading ? 'Updating...' : 'Change Email'}
+              </button>
+            </form>
           </section>
         </div>
       </div>
