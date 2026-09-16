@@ -106,5 +106,33 @@ router.get('/customers', async (req, res) => {
   }
 });
 
+// Get all sellers
+router.get('/sellers', async (req, res) => {
+  try {
+    const sellers = await User.find({
+      role: 'seller',
+    })
+      .select(
+        'name email phone shopName category area city pincode address openingHours rating reviewCount createdAt'
+      )
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      sellers,
+    });
+  } catch (error) {
+    console.error(
+      'Admin sellers error:',
+      error.message
+    );
+
+    res.status(500).json({
+      success: false,
+      message: 'Unable to load sellers.',
+    });
+  }
+});
+
 
 module.exports = router;
