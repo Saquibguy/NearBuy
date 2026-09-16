@@ -32,6 +32,11 @@ function App() {
   const [customersError, setCustomersError] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
 
+  const [sellers, setSellers] = useState([]);
+  const [sellersLoading, setSellersLoading] = useState(false);
+  const [sellersError, setSellersError] = useState('');
+  const [sellerSearch, setSellerSearch] = useState('');
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -107,6 +112,7 @@ function App() {
       setRecentOrders(data.recentOrders || []);
     } catch (error) {
       console.error('Dashboard error:', error);
+
       setDashboardError(
         'Unable to load dashboard data.'
       );
@@ -144,6 +150,35 @@ function App() {
     }
   };
 
+  const loadSellers = async () => {
+    try {
+      setSellersLoading(true);
+      setSellersError('');
+
+      const response = await fetch(
+        `${API_URL}/api/admin/sellers`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || 'Unable to load sellers.'
+        );
+      }
+
+      setSellers(data.sellers || []);
+    } catch (error) {
+      console.error('Sellers error:', error);
+
+      setSellersError(
+        'Unable to load seller data.'
+      );
+    } finally {
+      setSellersLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (loggedIn) {
       loadDashboard();
@@ -151,8 +186,14 @@ function App() {
   }, [loggedIn]);
 
   useEffect(() => {
-    if (loggedIn && activePage === 'customers') {
+    if (!loggedIn) return;
+
+    if (activePage === 'customers') {
       loadCustomers();
+    }
+
+    if (activePage === 'sellers') {
+      loadSellers();
     }
   }, [loggedIn, activePage]);
 
@@ -162,7 +203,11 @@ function App() {
     setEmail('');
     setPassword('');
     setActivePage('dashboard');
+
     setCustomers([]);
+    setSellers([]);
+    setCustomerSearch('');
+    setSellerSearch('');
   };
 
   const formatDate = (date) => {
@@ -211,15 +256,51 @@ function App() {
     }
   );
 
+  const filteredSellers = sellers.filter(
+    (seller) => {
+      const search = sellerSearch
+        .toLowerCase()
+        .trim();
+
+      if (!search) return true;
+
+      return (
+        seller.name
+          ?.toLowerCase()
+          .includes(search) ||
+        seller.email
+          ?.toLowerCase()
+          .includes(search) ||
+        seller.phone
+          ?.toLowerCase()
+          .includes(search) ||
+        seller.shopName
+          ?.toLowerCase()
+          .includes(search) ||
+        seller.category
+          ?.toLowerCase()
+          .includes(search) ||
+        seller.area
+          ?.toLowerCase()
+          .includes(search) ||
+        seller.city
+          ?.toLowerCase()
+          .includes(search)
+      );
+    }
+  );
+
   if (!loggedIn) {
     return (
       <div className="login-page">
+
         <div className="login-background-shape shape-one"></div>
         <div className="login-background-shape shape-two"></div>
 
         <div className="login-card">
 
           <div className="brand">
+
             <img
               src={nearbuyLogo}
               alt="NearBuy Logo"
@@ -230,22 +311,27 @@ function App() {
               <h2>NearBuy</h2>
               <span>Admin Panel</span>
             </div>
+
           </div>
 
           <div className="login-heading">
+
             <h1>Welcome back</h1>
 
             <p>
               Sign in to manage your NearBuy platform.
             </p>
+
           </div>
 
           <form onSubmit={handleLogin}>
 
             <div className="form-group">
+
               <label>Email Address</label>
 
               <div className="input-wrapper">
+
                 <span>✉</span>
 
                 <input
@@ -256,13 +342,17 @@ function App() {
                     setEmail(e.target.value)
                   }
                 />
+
               </div>
+
             </div>
 
             <div className="form-group">
+
               <label>Password</label>
 
               <div className="input-wrapper">
+
                 <span>●</span>
 
                 <input
@@ -273,7 +363,9 @@ function App() {
                     setPassword(e.target.value)
                   }
                 />
+
               </div>
+
             </div>
 
             <button
@@ -281,11 +373,13 @@ function App() {
               type="submit"
               disabled={loading}
             >
+
               {loading
                 ? 'Signing in...'
                 : 'Sign In'}
 
               {!loading && <span>→</span>}
+
             </button>
 
           </form>
@@ -296,6 +390,7 @@ function App() {
           </div>
 
         </div>
+
       </div>
     );
   }
@@ -305,11 +400,13 @@ function App() {
       <header className="topbar">
 
         <div>
+
           <p className="breadcrumb">
             NearBuy / Dashboard
           </p>
 
           <h1>Dashboard</h1>
+
         </div>
 
         <div className="topbar-right">
@@ -328,11 +425,13 @@ function App() {
             </div>
 
             <div>
+
               <strong>
                 {admin?.name || 'Administrator'}
               </strong>
 
               <small>Admin</small>
+
             </div>
 
           </div>
@@ -344,6 +443,7 @@ function App() {
       <section className="welcome-section">
 
         <div>
+
           <h2>
             Good to see you,{' '}
             {admin?.name || 'Admin'}!
@@ -352,9 +452,11 @@ function App() {
           <p>
             Here's what's happening across NearBuy today.
           </p>
+
         </div>
 
         <div className="date-card">
+
           <span>Today</span>
 
           <strong>
@@ -367,6 +469,7 @@ function App() {
               }
             )}
           </strong>
+
         </div>
 
       </section>
@@ -380,11 +483,13 @@ function App() {
       <section className="stats-grid">
 
         <div className="stat-card">
+
           <div className="stat-icon blue">
             ♙
           </div>
 
           <div>
+
             <span>Total Customers</span>
 
             <h3>
@@ -396,15 +501,19 @@ function App() {
             <small>
               Registered customers
             </small>
+
           </div>
+
         </div>
 
         <div className="stat-card">
+
           <div className="stat-icon green">
             ▣
           </div>
 
           <div>
+
             <span>Total Sellers</span>
 
             <h3>
@@ -416,15 +525,19 @@ function App() {
             <small>
               Registered shops
             </small>
+
           </div>
+
         </div>
 
         <div className="stat-card">
+
           <div className="stat-icon orange">
             ☷
           </div>
 
           <div>
+
             <span>Product Requests</span>
 
             <h3>
@@ -436,15 +549,19 @@ function App() {
             <small>
               Customer requests
             </small>
+
           </div>
+
         </div>
 
         <div className="stat-card">
+
           <div className="stat-icon purple">
             🛒
           </div>
 
           <div>
+
             <span>Total Orders</span>
 
             <h3>
@@ -456,7 +573,9 @@ function App() {
             <small>
               Confirmed orders
             </small>
+
           </div>
+
         </div>
 
       </section>
@@ -466,12 +585,15 @@ function App() {
         <div className="dashboard-card">
 
           <div className="card-header">
+
             <div>
+
               <h3>Recent Requests</h3>
 
               <p>
                 Latest customer product requests
               </p>
+
             </div>
 
             <button
@@ -481,10 +603,13 @@ function App() {
             >
               View All →
             </button>
+
           </div>
 
           {recentRequests.length === 0 ? (
+
             <div className="empty-state">
+
               <div className="empty-icon">
                 ☷
               </div>
@@ -494,20 +619,26 @@ function App() {
               <p>
                 Customer requests will appear here.
               </p>
+
             </div>
+
           ) : (
+
             <div className="data-list">
 
               {recentRequests.map((request) => (
+
                 <div
                   className="data-row"
                   key={request._id}
                 >
+
                   <div className="data-icon">
                     ☷
                   </div>
 
                   <div className="data-info">
+
                     <strong>
                       {request.productName}
                     </strong>
@@ -516,9 +647,11 @@ function App() {
                       {request.customerId?.name ||
                         'Customer'}
                     </span>
+
                   </div>
 
                   <div className="data-meta">
+
                     <strong>
                       ₹{request.budget}
                     </strong>
@@ -528,11 +661,15 @@ function App() {
                         request.createdAt
                       )}
                     </span>
+
                   </div>
+
                 </div>
+
               ))}
 
             </div>
+
           )}
 
         </div>
@@ -542,11 +679,13 @@ function App() {
           <div className="card-header">
 
             <div>
+
               <h3>Recent Orders</h3>
 
               <p>
                 Latest orders
               </p>
+
             </div>
 
             <button
@@ -560,6 +699,7 @@ function App() {
           </div>
 
           {recentOrders.length === 0 ? (
+
             <div className="empty-state">
 
               <div className="empty-icon">
@@ -574,19 +714,24 @@ function App() {
               </p>
 
             </div>
+
           ) : (
+
             <div className="data-list">
 
               {recentOrders.map((order) => (
+
                 <div
                   className="data-row"
                   key={order._id}
                 >
+
                   <div className="data-icon">
                     🛒
                   </div>
 
                   <div className="data-info">
+
                     <strong>
                       {order.productName}
                     </strong>
@@ -596,9 +741,11 @@ function App() {
                         order.sellerId?.name ||
                         'Seller'}
                     </span>
+
                   </div>
 
                   <div className="data-meta">
+
                     <strong>
                       ₹{order.price}
                     </strong>
@@ -608,11 +755,15 @@ function App() {
                         order.createdAt
                       )}
                     </span>
+
                   </div>
+
                 </div>
+
               ))}
 
             </div>
+
           )}
 
         </div>
@@ -626,11 +777,13 @@ function App() {
       <header className="topbar">
 
         <div>
+
           <p className="breadcrumb">
             NearBuy / Customers
           </p>
 
           <h1>Customers</h1>
+
         </div>
 
         <div className="topbar-right">
@@ -655,11 +808,13 @@ function App() {
             </div>
 
             <div>
+
               <strong>
                 {admin?.name || 'Administrator'}
               </strong>
 
               <small>Admin</small>
+
             </div>
 
           </div>
@@ -671,17 +826,24 @@ function App() {
       <section className="page-intro">
 
         <div>
+
           <h2>Customer Management</h2>
 
           <p>
             View and manage customers registered
             on the NearBuy platform.
           </p>
+
         </div>
 
         <div className="customer-count-card">
+
           <span>Total Customers</span>
-          <strong>{customers.length}</strong>
+
+          <strong>
+            {customers.length}
+          </strong>
+
         </div>
 
       </section>
@@ -691,6 +853,7 @@ function App() {
         <div className="customer-toolbar">
 
           <div>
+
             <h3>All Customers</h3>
 
             <p>
@@ -699,6 +862,7 @@ function App() {
                 ? 's'
                 : ''} found
             </p>
+
           </div>
 
           <div className="customer-search">
@@ -727,6 +891,7 @@ function App() {
         )}
 
         {customersLoading ? (
+
           <div className="table-state">
 
             <div className="loading-spinner"></div>
@@ -738,7 +903,9 @@ function App() {
             </p>
 
           </div>
+
         ) : filteredCustomers.length === 0 ? (
+
           <div className="table-state">
 
             <div className="empty-table-icon">
@@ -758,28 +925,36 @@ function App() {
             </p>
 
           </div>
+
         ) : (
+
           <div className="customer-table-wrapper">
 
             <table className="customer-table">
 
               <thead>
+
                 <tr>
+
                   <th>Customer</th>
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Joined</th>
                   <th>Status</th>
+
                 </tr>
+
               </thead>
 
               <tbody>
 
                 {filteredCustomers.map(
                   (customer) => (
+
                     <tr key={customer._id}>
 
                       <td>
+
                         <div className="customer-cell">
 
                           <div className="customer-avatar">
@@ -789,6 +964,7 @@ function App() {
                           </div>
 
                           <div>
+
                             <strong>
                               {customer.name ||
                                 'Unnamed Customer'}
@@ -797,15 +973,19 @@ function App() {
                             <span>
                               Customer
                             </span>
+
                           </div>
 
                         </div>
+
                       </td>
 
                       <td>
+
                         <span className="table-email">
                           {customer.email}
                         </span>
+
                       </td>
 
                       <td>
@@ -819,12 +999,15 @@ function App() {
                       </td>
 
                       <td>
+
                         <span className="status-badge active-status">
                           Active
                         </span>
+
                       </td>
 
                     </tr>
+
                   )
                 )}
 
@@ -833,6 +1016,275 @@ function App() {
             </table>
 
           </div>
+
+        )}
+
+      </section>
+    </>
+  );
+
+  const renderSellers = () => (
+    <>
+      <header className="topbar">
+
+        <div>
+
+          <p className="breadcrumb">
+            NearBuy / Sellers
+          </p>
+
+          <h1>Sellers</h1>
+
+        </div>
+
+        <div className="topbar-right">
+
+          <button
+            className="refresh-button"
+            onClick={loadSellers}
+            disabled={sellersLoading}
+          >
+            ↻
+            {sellersLoading
+              ? 'Refreshing...'
+              : 'Refresh'}
+          </button>
+
+          <div className="top-admin">
+
+            <div className="avatar">
+              {admin?.name
+                ?.charAt(0)
+                .toUpperCase() || 'A'}
+            </div>
+
+            <div>
+
+              <strong>
+                {admin?.name || 'Administrator'}
+              </strong>
+
+              <small>Admin</small>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </header>
+
+      <section className="page-intro">
+
+        <div>
+
+          <h2>Seller Management</h2>
+
+          <p>
+            View and manage sellers and shops
+            registered on the NearBuy platform.
+          </p>
+
+        </div>
+
+        <div className="customer-count-card">
+
+          <span>Total Sellers</span>
+
+          <strong>
+            {sellers.length}
+          </strong>
+
+        </div>
+
+      </section>
+
+      <section className="customer-panel">
+
+        <div className="customer-toolbar">
+
+          <div>
+
+            <h3>All Sellers</h3>
+
+            <p>
+              {filteredSellers.length} seller
+              {filteredSellers.length !== 1
+                ? 's'
+                : ''} found
+            </p>
+
+          </div>
+
+          <div className="customer-search">
+
+            <span>⌕</span>
+
+            <input
+              type="text"
+              placeholder="Search sellers or shops..."
+              value={sellerSearch}
+              onChange={(e) =>
+                setSellerSearch(
+                  e.target.value
+                )
+              }
+            />
+
+          </div>
+
+        </div>
+
+        {sellersError && (
+          <div className="dashboard-error">
+            {sellersError}
+          </div>
+        )}
+
+        {sellersLoading ? (
+
+          <div className="table-state">
+
+            <div className="loading-spinner"></div>
+
+            <h4>Loading sellers...</h4>
+
+            <p>
+              Fetching seller information.
+            </p>
+
+          </div>
+
+        ) : filteredSellers.length === 0 ? (
+
+          <div className="table-state">
+
+            <div className="empty-table-icon">
+              ▣
+            </div>
+
+            <h4>
+              {sellerSearch
+                ? 'No sellers found'
+                : 'No sellers yet'}
+            </h4>
+
+            <p>
+              {sellerSearch
+                ? 'Try a different search term.'
+                : 'Registered sellers will appear here.'}
+            </p>
+
+          </div>
+
+        ) : (
+
+          <div className="customer-table-wrapper">
+
+            <table className="customer-table">
+
+              <thead>
+
+                <tr>
+
+                  <th>Seller</th>
+                  <th>Shop</th>
+                  <th>Category</th>
+                  <th>Location</th>
+                  <th>Phone</th>
+                  <th>Joined</th>
+                  <th>Status</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {filteredSellers.map(
+                  (seller) => (
+
+                    <tr key={seller._id}>
+
+                      <td>
+
+                        <div className="customer-cell">
+
+                          <div className="customer-avatar">
+                            {getInitials(
+                              seller.name
+                            )}
+                          </div>
+
+                          <div>
+
+                            <strong>
+                              {seller.name ||
+                                'Unnamed Seller'}
+                            </strong>
+
+                            <span>
+                              {seller.email ||
+                                'Seller'}
+                            </span>
+
+                          </div>
+
+                        </div>
+
+                      </td>
+
+                      <td>
+
+                        <strong>
+                          {seller.shopName || 'N/A'}
+                        </strong>
+
+                      </td>
+
+                      <td>
+                        {seller.category || 'N/A'}
+                      </td>
+
+                      <td>
+
+                        {seller.area
+                          ? `${seller.area}, `
+                          : ''}
+
+                        {seller.city || 'N/A'}
+
+                      </td>
+
+                      <td>
+                        {seller.phone || 'N/A'}
+                      </td>
+
+                      <td>
+                        {formatDate(
+                          seller.createdAt
+                        )}
+                      </td>
+
+                      <td>
+
+                        <span className="status-badge active-status">
+                          Active
+                        </span>
+
+                      </td>
+
+                    </tr>
+
+                  )
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
         )}
 
       </section>
@@ -853,8 +1305,11 @@ function App() {
           />
 
           <div>
+
             <h2>NearBuy</h2>
+
             <span>Admin Panel</span>
+
           </div>
 
         </div>
@@ -984,8 +1439,10 @@ function App() {
             className="logout-button"
             onClick={handleLogout}
           >
+
             <span>↪</span>
             Logout
+
           </button>
 
         </div>
@@ -1000,8 +1457,13 @@ function App() {
         {activePage === 'customers' &&
           renderCustomers()}
 
+        {activePage === 'sellers' &&
+          renderSellers()}
+
         {activePage !== 'dashboard' &&
-          activePage !== 'customers' && (
+          activePage !== 'customers' &&
+          activePage !== 'sellers' && (
+
             <div className="coming-soon-page">
 
               <div className="coming-soon-icon">
@@ -1021,6 +1483,7 @@ function App() {
               </p>
 
             </div>
+
           )}
 
       </main>

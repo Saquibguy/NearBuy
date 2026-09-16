@@ -134,5 +134,29 @@ router.get('/sellers', async (req, res) => {
   }
 });
 
+// Get all product requests
+router.get('/requests', async (req, res) => {
+  try {
+    const requests = await ProductRequest.find()
+      .populate('customerId', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      requests,
+    });
+  } catch (error) {
+    console.error(
+      'Admin requests error:',
+      error.message
+    );
+
+    res.status(500).json({
+      success: false,
+      message: 'Unable to load requests.',
+    });
+  }
+});
+
 
 module.exports = router;
