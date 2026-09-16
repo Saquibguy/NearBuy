@@ -78,4 +78,33 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
+// Get all customers
+router.get('/customers', async (req, res) => {
+  try {
+    const customers = await User.find({
+      role: 'customer',
+    })
+      .select(
+        'name email phone createdAt'
+      )
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      customers,
+    });
+  } catch (error) {
+    console.error(
+      'Admin customers error:',
+      error.message
+    );
+
+    res.status(500).json({
+      success: false,
+      message: 'Unable to load customers.',
+    });
+  }
+});
+
+
 module.exports = router;
