@@ -158,5 +158,31 @@ router.get('/requests', async (req, res) => {
   }
 });
 
+// Get all orders
+router.get('/orders', async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate('customerId', 'name email phone')
+      .populate('sellerId', 'name email phone shopName')
+      .populate('requestId', 'productName category')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    console.error(
+      'Admin orders error:',
+      error.message
+    );
+
+    res.status(500).json({
+      success: false,
+      message: 'Unable to load orders.',
+    });
+  }
+});
+
 
 module.exports = router;
