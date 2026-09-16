@@ -1,63 +1,55 @@
 import { useEffect, useState } from 'react';
-import nearbuyLogo from '../../assets/images/icon.png';
+import logo from '../../assets/images/icon.png';
 import './App.css';
 
 const API_URL = 'https://nearbuy-backend-gzbq.onrender.com';
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    localStorage.getItem('adminLoggedIn') === 'true'
+  );
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [admin, setAdmin] = useState(null);
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
 
   const [activePage, setActivePage] = useState('dashboard');
+  const [apiStatus, setApiStatus] = useState('Not checked');
+  const [apiChecking, setApiChecking] = useState(false);
 
-  // Dashboard
-  const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [dashboardError, setDashboardError] = useState('');
-
-  const [statistics, setStatistics] = useState({
-    totalCustomers: 0,
-    totalSellers: 0,
-    totalRequests: 0,
-    totalOrders: 0,
-  });
-
-  const [recentRequests, setRecentRequests] = useState([]);
-  const [recentOrders, setRecentOrders] = useState([]);
-
-  // Customers
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customersError, setCustomersError] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
 
-  // Sellers
   const [sellers, setSellers] = useState([]);
   const [sellersLoading, setSellersLoading] = useState(false);
   const [sellersError, setSellersError] = useState('');
   const [sellerSearch, setSellerSearch] = useState('');
 
-  // Requests
   const [requests, setRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState('');
   const [requestSearch, setRequestSearch] = useState('');
 
-  // ---------------- LOGIN ----------------
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (!email.trim() || !password.trim()) {
-      alert('Please enter email and password.');
+    setLoginError('');
+
+    if (!email || !password) {
+      setLoginError('Please enter email and password.');
       return;
     }
 
     try {
-      setLoading(true);
+      setLoginLoading(true);
 
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
@@ -65,7 +57,7 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email.trim(),
+          email,
           password,
           role: 'admin',
         }),
@@ -74,67 +66,42 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.message || 'Invalid email or password.');
-        return;
+        throw new Error(data.message || 'Login failed.');
       }
 
-      if (!data.user || data.user.role !== 'admin') {
-        alert('Access denied. Admin account required.');
-        return;
+      // Support both response formats used by the NearBuy backend:
+      // { success: true, data: { user: {...} } }
+      // and { success: true, user: {...} }
+      const adminUser = data.data?.user || data.data || data.user || {};
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || 'Login failed.');
       }
 
-      setAdmin(data.user);
-      setLoggedIn(true);
+      localStorage.setItem('adminLoggedIn', 'true');
+      localStorage.setItem('adminUser', JSON.stringify(adminUser));
+
+      setActivePage('dashboard');
+      setIsLoggedIn(true);
+      setLoginError('');
+      setEmail('');
+      setPassword('');
+
+      // Reload the app so the dashboard opens reliably.
+      window.location.replace('/');
     } catch (error) {
-      console.error('Admin login error:', error);
-      alert('Unable to connect to the server.');
+      setLoginError(error.message);
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
     }
   };
 
-  // ---------------- DASHBOARD ----------------
-
-  const loadDashboard = async () => {
-    try {
-      setDashboardLoading(true);
-      setDashboardError('');
-
-      const response = await fetch(
-        `${API_URL}/api/admin/dashboard`
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.message || 'Unable to load dashboard.'
-        );
-      }
-
-      setStatistics(
-        data.statistics || {
-          totalCustomers: 0,
-          totalSellers: 0,
-          totalRequests: 0,
-          totalOrders: 0,
-        }
-      );
-
-      setRecentRequests(data.recentRequests || []);
-      setRecentOrders(data.recentOrders || []);
-    } catch (error) {
-      console.error('Dashboard error:', error);
-
-      setDashboardError(
-        'Unable to load dashboard data.'
-      );
-    } finally {
-      setDashboardLoading(false);
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('adminLoggedIn');
+    localStorage.removeItem('adminUser');
+    setIsLoggedIn(false);
+    setActivePage('dashboard');
   };
-
-  // ---------------- CUSTOMERS ----------------
 
   const loadCustomers = async () => {
     try {
@@ -147,7 +114,7 @@ function App() {
 
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
         throw new Error(
           data.message || 'Unable to load customers.'
         );
@@ -155,17 +122,11 @@ function App() {
 
       setCustomers(data.customers || []);
     } catch (error) {
-      console.error('Customers error:', error);
-
-      setCustomersError(
-        'Unable to load customer data.'
-      );
+      setCustomersError(error.message);
     } finally {
       setCustomersLoading(false);
     }
   };
-
-  // ---------------- SELLERS ----------------
 
   const loadSellers = async () => {
     try {
@@ -178,7 +139,7 @@ function App() {
 
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
         throw new Error(
           data.message || 'Unable to load sellers.'
         );
@@ -186,17 +147,11 @@ function App() {
 
       setSellers(data.sellers || []);
     } catch (error) {
-      console.error('Sellers error:', error);
-
-      setSellersError(
-        'Unable to load seller data.'
-      );
+      setSellersError(error.message);
     } finally {
       setSellersLoading(false);
     }
   };
-
-  // ---------------- REQUESTS ----------------
 
   const loadRequests = async () => {
     try {
@@ -209,7 +164,7 @@ function App() {
 
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
         throw new Error(
           data.message || 'Unable to load requests.'
         );
@@ -217,26 +172,39 @@ function App() {
 
       setRequests(data.requests || []);
     } catch (error) {
-      console.error('Requests error:', error);
-
-      setRequestsError(
-        'Unable to load request data.'
-      );
+      setRequestsError(error.message);
     } finally {
       setRequestsLoading(false);
     }
   };
 
-  // ---------------- EFFECTS ----------------
+  const loadOrders = async () => {
+    try {
+      setOrdersLoading(true);
+      setOrdersError('');
 
-  useEffect(() => {
-    if (loggedIn) {
-      loadDashboard();
+      const response = await fetch(
+        `${API_URL}/api/admin/orders`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || 'Unable to load orders.'
+        );
+      }
+
+      setOrders(data.orders || []);
+    } catch (error) {
+      setOrdersError(error.message);
+    } finally {
+      setOrdersLoading(false);
     }
-  }, [loggedIn]);
+  };
 
   useEffect(() => {
-    if (!loggedIn) return;
+    if (!isLoggedIn) return;
 
     if (activePage === 'customers') {
       loadCustomers();
@@ -249,709 +217,262 @@ function App() {
     if (activePage === 'requests') {
       loadRequests();
     }
-  }, [loggedIn, activePage]);
 
-  // ---------------- LOGOUT ----------------
+    if (activePage === 'orders') {
+      loadOrders();
+    }
+  }, [activePage, isLoggedIn]);
 
-  const handleLogout = () => {
-    setLoggedIn(false);
-    setAdmin(null);
-    setEmail('');
-    setPassword('');
-    setActivePage('dashboard');
+  const filteredCustomers = customers.filter((customer) => {
+    const search = customerSearch.toLowerCase();
 
-    setCustomers([]);
-    setSellers([]);
-    setRequests([]);
+    return (
+      customer.name?.toLowerCase().includes(search) ||
+      customer.email?.toLowerCase().includes(search) ||
+      customer.phone?.toLowerCase().includes(search)
+    );
+  });
+
+  const filteredSellers = sellers.filter((seller) => {
+    const search = sellerSearch.toLowerCase();
+
+    return (
+      seller.name?.toLowerCase().includes(search) ||
+      seller.email?.toLowerCase().includes(search) ||
+      seller.phone?.toLowerCase().includes(search) ||
+      seller.shopName?.toLowerCase().includes(search) ||
+      seller.category?.toLowerCase().includes(search)
+    );
+  });
+
+  const filteredRequests = requests.filter((request) => {
+    const search = requestSearch.toLowerCase();
+
+    return (
+      request.productName?.toLowerCase().includes(search) ||
+      request.category?.toLowerCase().includes(search) ||
+      request.location?.toLowerCase().includes(search) ||
+      request.customerId?.name
+        ?.toLowerCase()
+        .includes(search)
+    );
+  });
+
+  const filteredOrders = orders.filter((order) => {
+    const search = orderSearch.toLowerCase();
+
+    return (
+      order.productName?.toLowerCase().includes(search) ||
+      order.customerId?.name
+        ?.toLowerCase()
+        .includes(search) ||
+      order.sellerId?.name
+        ?.toLowerCase()
+        .includes(search) ||
+      order.sellerId?.shopName
+        ?.toLowerCase()
+        .includes(search) ||
+      order.status?.toLowerCase().includes(search)
+    );
+  });
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'Active':
+      case 'Confirmed':
+        return 'status-active';
+
+      case 'Completed':
+        return 'status-completed';
+
+      case 'Cancelled':
+        return 'status-cancelled';
+
+      case 'Pending':
+        return 'status-pending';
+
+      default:
+        return 'status-default';
+    }
   };
-
-  // ---------------- HELPERS ----------------
 
   const formatDate = (date) => {
-    if (!date) return 'N/A';
+    if (!date) return '-';
 
-    return new Date(date).toLocaleDateString(
-      'en-IN',
-      {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }
-    );
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
-  const getInitials = (name) => {
-    if (!name) return 'NB';
+  const renderDashboard = () => {
+    const totalCustomers = customers.length;
+    const totalSellers = sellers.length;
+    const totalRequests = requests.length;
+    const totalOrders = orders.length;
 
-    return name
-      .split(' ')
-      .slice(0, 2)
-      .map((word) => word.charAt(0))
-      .join('')
-      .toUpperCase();
-  };
-
-  // ---------------- FILTERS ----------------
-
-  const filteredCustomers = customers.filter(
-    (customer) => {
-      const search = customerSearch
-        .toLowerCase()
-        .trim();
-
-      if (!search) return true;
-
-      return (
-        customer.name
-          ?.toLowerCase()
-          .includes(search) ||
-        customer.email
-          ?.toLowerCase()
-          .includes(search) ||
-        customer.phone
-          ?.toLowerCase()
-          .includes(search)
-      );
-    }
-  );
-
-  const filteredSellers = sellers.filter(
-    (seller) => {
-      const search = sellerSearch
-        .toLowerCase()
-        .trim();
-
-      if (!search) return true;
-
-      return (
-        seller.name
-          ?.toLowerCase()
-          .includes(search) ||
-        seller.email
-          ?.toLowerCase()
-          .includes(search) ||
-        seller.phone
-          ?.toLowerCase()
-          .includes(search) ||
-        seller.shopName
-          ?.toLowerCase()
-          .includes(search) ||
-        seller.category
-          ?.toLowerCase()
-          .includes(search) ||
-        seller.city
-          ?.toLowerCase()
-          .includes(search)
-      );
-    }
-  );
-
-  const filteredRequests = requests.filter(
-    (request) => {
-      const search = requestSearch
-        .toLowerCase()
-        .trim();
-
-      if (!search) return true;
-
-      return (
-        request.productName
-          ?.toLowerCase()
-          .includes(search) ||
-        request.category
-          ?.toLowerCase()
-          .includes(search) ||
-        request.location
-          ?.toLowerCase()
-          .includes(search) ||
-        request.condition
-          ?.toLowerCase()
-          .includes(search) ||
-        request.status
-          ?.toLowerCase()
-          .includes(search) ||
-        request.customerId?.name
-          ?.toLowerCase()
-          .includes(search) ||
-        request.customerId?.email
-          ?.toLowerCase()
-          .includes(search)
-      );
-    }
-  );
-
-  // ---------------- LOGIN PAGE ----------------
-
-  if (!loggedIn) {
     return (
-      <div className="login-page">
-        <div className="login-background-shape shape-one"></div>
-        <div className="login-background-shape shape-two"></div>
+      <div className="page-content">
+        <div className="page-header">
+          <div>
+            <h1>Dashboard</h1>
+            <p>Overview of your NearBuy platform.</p>
+          </div>
+        </div>
 
-        <div className="login-card">
-
-          <div className="brand">
-            <img
-              src={nearbuyLogo}
-              alt="NearBuy Logo"
-              className="brand-logo"
-            />
-
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon">👤</div>
             <div>
-              <h2>NearBuy</h2>
-              <span>Admin Panel</span>
+              <span>Total Customers</span>
+              <h2>{totalCustomers}</h2>
             </div>
           </div>
 
-          <div className="login-heading">
-            <h1>Welcome back</h1>
-
-            <p>
-              Sign in to manage your NearBuy platform.
-            </p>
+          <div className="stat-card">
+            <div className="stat-icon">🏪</div>
+            <div>
+              <span>Total Sellers</span>
+              <h2>{totalSellers}</h2>
+            </div>
           </div>
 
-          <form onSubmit={handleLogin}>
-
-            <div className="form-group">
-              <label>Email Address</label>
-
-              <div className="input-wrapper">
-                <span>✉</span>
-
-                <input
-                  type="email"
-                  placeholder="admin@nearbuy.com"
-                  value={email}
-                  onChange={(e) =>
-                    setEmail(e.target.value)
-                  }
-                />
-              </div>
+          <div className="stat-card">
+            <div className="stat-icon">📋</div>
+            <div>
+              <span>Total Requests</span>
+              <h2>{totalRequests}</h2>
             </div>
+          </div>
 
-            <div className="form-group">
-              <label>Password</label>
-
-              <div className="input-wrapper">
-                <span>●</span>
-
-                <input
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) =>
-                    setPassword(e.target.value)
-                  }
-                />
-              </div>
+          <div className="stat-card">
+            <div className="stat-icon">🛒</div>
+            <div>
+              <span>Total Orders</span>
+              <h2>{totalOrders}</h2>
             </div>
+          </div>
+        </div>
 
+        <div className="dashboard-card">
+          <div className="dashboard-card-header">
+            <div>
+              <h2>NearBuy Admin Panel</h2>
+              <p>
+                Manage customers, sellers, product requests and
+                orders from one place.
+              </p>
+            </div>
+          </div>
+
+          <div className="quick-actions">
             <button
-              className="login-button"
-              type="submit"
-              disabled={loading}
+              onClick={() => setActivePage('customers')}
+              className="quick-action"
             >
-              {loading
-                ? 'Signing in...'
-                : 'Sign In'}
-
-              {!loading && <span>→</span>}
+              <span>👤</span>
+              <div>
+                <strong>Customers</strong>
+                <small>View registered customers</small>
+              </div>
             </button>
 
-          </form>
+            <button
+              onClick={() => setActivePage('sellers')}
+              className="quick-action"
+            >
+              <span>🏪</span>
+              <div>
+                <strong>Sellers</strong>
+                <small>View registered shops</small>
+              </div>
+            </button>
 
-          <div className="login-footer">
-            <span>NearBuy Admin Panel</span>
-            <span>v1.0.0</span>
+            <button
+              onClick={() => setActivePage('requests')}
+              className="quick-action"
+            >
+              <span>📋</span>
+              <div>
+                <strong>Requests</strong>
+                <small>View customer requests</small>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActivePage('orders')}
+              className="quick-action"
+            >
+              <span>🛒</span>
+              <div>
+                <strong>Orders</strong>
+                <small>View confirmed orders</small>
+              </div>
+            </button>
           </div>
-
         </div>
       </div>
     );
-  }
-
-  // ---------------- DASHBOARD ----------------
-
-  const renderDashboard = () => (
-    <>
-      <header className="topbar">
-
-        <div>
-          <p className="breadcrumb">
-            NearBuy / Dashboard
-          </p>
-
-          <h1>Dashboard</h1>
-        </div>
-
-        <div className="topbar-right">
-
-          <button className="notification-button">
-            ♢
-            <span></span>
-          </button>
-
-          <div className="top-admin">
-
-            <div className="avatar">
-              {admin?.name
-                ?.charAt(0)
-                .toUpperCase() || 'A'}
-            </div>
-
-            <div>
-              <strong>
-                {admin?.name || 'Administrator'}
-              </strong>
-
-              <small>Admin</small>
-            </div>
-
-          </div>
-
-        </div>
-
-      </header>
-
-      <section className="welcome-section">
-
-        <div>
-          <h2>
-            Good to see you,{' '}
-            {admin?.name || 'Admin'}!
-          </h2>
-
-          <p>
-            Here's what's happening across NearBuy today.
-          </p>
-        </div>
-
-        <div className="date-card">
-          <span>Today</span>
-
-          <strong>
-            {new Date().toLocaleDateString(
-              'en-IN',
-              {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              }
-            )}
-          </strong>
-        </div>
-
-      </section>
-
-      {dashboardError && (
-        <div className="dashboard-error">
-          {dashboardError}
-        </div>
-      )}
-
-      <section className="stats-grid">
-
-        <div className="stat-card">
-          <div className="stat-icon blue">
-            ♙
-          </div>
-
-          <div>
-            <span>Total Customers</span>
-
-            <h3>
-              {dashboardLoading
-                ? '...'
-                : statistics.totalCustomers}
-            </h3>
-
-            <small>
-              Registered customers
-            </small>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon green">
-            ▣
-          </div>
-
-          <div>
-            <span>Total Sellers</span>
-
-            <h3>
-              {dashboardLoading
-                ? '...'
-                : statistics.totalSellers}
-            </h3>
-
-            <small>
-              Registered shops
-            </small>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon orange">
-            ☷
-          </div>
-
-          <div>
-            <span>Product Requests</span>
-
-            <h3>
-              {dashboardLoading
-                ? '...'
-                : statistics.totalRequests}
-            </h3>
-
-            <small>
-              Customer requests
-            </small>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon purple">
-            🛒
-          </div>
-
-          <div>
-            <span>Total Orders</span>
-
-            <h3>
-              {dashboardLoading
-                ? '...'
-                : statistics.totalOrders}
-            </h3>
-
-            <small>
-              Confirmed orders
-            </small>
-          </div>
-        </div>
-
-      </section>
-
-      <section className="dashboard-grid">
-
-        <div className="dashboard-card">
-
-          <div className="card-header">
-
-            <div>
-              <h3>Recent Requests</h3>
-
-              <p>
-                Latest customer product requests
-              </p>
-            </div>
-
-            <button
-              onClick={() =>
-                setActivePage('requests')
-              }
-            >
-              View All →
-            </button>
-
-          </div>
-
-          {recentRequests.length === 0 ? (
-            <div className="empty-state">
-
-              <div className="empty-icon">
-                ☷
-              </div>
-
-              <h4>No requests found</h4>
-
-              <p>
-                Customer requests will appear here.
-              </p>
-
-            </div>
-          ) : (
-            <div className="data-list">
-
-              {recentRequests.map((request) => (
-                <div
-                  className="data-row"
-                  key={request._id}
-                >
-
-                  <div className="data-icon">
-                    ☷
-                  </div>
-
-                  <div className="data-info">
-
-                    <strong>
-                      {request.productName}
-                    </strong>
-
-                    <span>
-                      {request.customerId?.name ||
-                        'Customer'}
-                    </span>
-
-                  </div>
-
-                  <div className="data-meta">
-
-                    <strong>
-                      ₹{request.budget}
-                    </strong>
-
-                    <span>
-                      {formatDate(
-                        request.createdAt
-                      )}
-                    </span>
-
-                  </div>
-
-                </div>
-              ))}
-
-            </div>
-          )}
-
-        </div>
-
-        <div className="dashboard-card">
-
-          <div className="card-header">
-
-            <div>
-              <h3>Recent Orders</h3>
-
-              <p>
-                Latest orders
-              </p>
-            </div>
-
-            <button
-              onClick={() =>
-                setActivePage('orders')
-              }
-            >
-              View All →
-            </button>
-
-          </div>
-
-          {recentOrders.length === 0 ? (
-            <div className="empty-state">
-
-              <div className="empty-icon">
-                🛒
-              </div>
-
-              <h4>No orders found</h4>
-
-              <p>
-                Orders will appear here when
-                customers accept offers.
-              </p>
-
-            </div>
-          ) : (
-            <div className="data-list">
-
-              {recentOrders.map((order) => (
-                <div
-                  className="data-row"
-                  key={order._id}
-                >
-
-                  <div className="data-icon">
-                    🛒
-                  </div>
-
-                  <div className="data-info">
-
-                    <strong>
-                      {order.productName}
-                    </strong>
-
-                    <span>
-                      {order.sellerId?.shopName ||
-                        order.sellerId?.name ||
-                        'Seller'}
-                    </span>
-
-                  </div>
-
-                  <div className="data-meta">
-
-                    <strong>
-                      ₹{order.price}
-                    </strong>
-
-                    <span>
-                      {formatDate(
-                        order.createdAt
-                      )}
-                    </span>
-
-                  </div>
-
-                </div>
-              ))}
-
-            </div>
-          )}
-
-        </div>
-
-      </section>
-    </>
-  );
-
-  // ---------------- CUSTOMERS ----------------
+  };
 
   const renderCustomers = () => (
-    <>
-      <header className="topbar">
-
+    <div className="page-content">
+      <div className="page-header">
         <div>
-          <p className="breadcrumb">
-            NearBuy / Customers
-          </p>
-
           <h1>Customers</h1>
+          <p>Manage registered NearBuy customers.</p>
         </div>
 
-        <div className="topbar-right">
+        <button
+          className="refresh-button"
+          onClick={loadCustomers}
+        >
+          ↻ Refresh
+        </button>
+      </div>
 
-          <button
-            className="refresh-button"
-            onClick={loadCustomers}
-            disabled={customersLoading}
-          >
-            ↻
-            {customersLoading
-              ? 'Refreshing...'
-              : 'Refresh'}
-          </button>
-
-          <div className="top-admin">
-
-            <div className="avatar">
-              {admin?.name
-                ?.charAt(0)
-                .toUpperCase() || 'A'}
-            </div>
-
-            <div>
-              <strong>
-                {admin?.name || 'Administrator'}
-              </strong>
-
-              <small>Admin</small>
-            </div>
-
-          </div>
-
-        </div>
-
-      </header>
-
-      <section className="page-intro">
-
-        <div>
-          <h2>Customer Management</h2>
-
-          <p>
-            View and manage customers registered
-            on the NearBuy platform.
-          </p>
-        </div>
-
-        <div className="customer-count-card">
-          <span>Total Customers</span>
-          <strong>{customers.length}</strong>
-        </div>
-
-      </section>
-
-      <section className="customer-panel">
-
-        <div className="customer-toolbar">
-
+      <div className="content-card">
+        <div className="table-toolbar">
           <div>
-            <h3>All Customers</h3>
-
-            <p>
-              {filteredCustomers.length} customer
-              {filteredCustomers.length !== 1
-                ? 's'
-                : ''} found
-            </p>
+            <h2>Customer List</h2>
+            <span>{filteredCustomers.length} customers</span>
           </div>
 
-          <div className="customer-search">
-
-            <span>⌕</span>
-
-            <input
-              type="text"
-              placeholder="Search customers..."
-              value={customerSearch}
-              onChange={(e) =>
-                setCustomerSearch(e.target.value)
-              }
-            />
-
-          </div>
-
+          <input
+            type="text"
+            placeholder="Search customers..."
+            value={customerSearch}
+            onChange={(e) =>
+              setCustomerSearch(e.target.value)
+            }
+            className="search-input"
+          />
         </div>
-
-        {customersError && (
-          <div className="dashboard-error">
-            {customersError}
-          </div>
-        )}
 
         {customersLoading ? (
-          <div className="table-state">
-
-            <div className="loading-spinner"></div>
-
-            <h4>Loading customers...</h4>
-
-            <p>
-              Fetching customer information.
-            </p>
-
+          <div className="empty-state">
+            <div className="loader"></div>
+            <p>Loading customers...</p>
+          </div>
+        ) : customersError ? (
+          <div className="error-state">
+            <p>{customersError}</p>
+            <button onClick={loadCustomers}>
+              Try Again
+            </button>
           </div>
         ) : filteredCustomers.length === 0 ? (
-          <div className="table-state">
-
-            <div className="empty-table-icon">
-              ♙
-            </div>
-
-            <h4>
-              {customerSearch
-                ? 'No customers found'
-                : 'No customers yet'}
-            </h4>
-
+          <div className="empty-state">
+            <div className="empty-icon">👤</div>
+            <h3>No customers found</h3>
             <p>
-              {customerSearch
-                ? 'Try a different search term.'
-                : 'Registered customers will appear here.'}
+              There are no customers matching your search.
             </p>
-
           </div>
         ) : (
-          <div className="customer-table-wrapper">
-
-            <table className="customer-table">
-
+          <div className="table-wrapper">
+            <table>
               <thead>
                 <tr>
                   <th>Customer</th>
@@ -963,215 +484,102 @@ function App() {
               </thead>
 
               <tbody>
-
-                {filteredCustomers.map(
-                  (customer) => (
-                    <tr key={customer._id}>
-
-                      <td>
-
-                        <div className="customer-cell">
-
-                          <div className="customer-avatar">
-                            {getInitials(
-                              customer.name
-                            )}
-                          </div>
-
-                          <div>
-                            <strong>
-                              {customer.name ||
-                                'Unnamed Customer'}
-                            </strong>
-
-                            <span>
-                              Customer
-                            </span>
-                          </div>
-
+                {filteredCustomers.map((customer) => (
+                  <tr key={customer._id}>
+                    <td>
+                      <div className="user-cell">
+                        <div className="avatar">
+                          {customer.name
+                            ?.charAt(0)
+                            .toUpperCase() || 'C'}
                         </div>
 
-                      </td>
+                        <div>
+                          <strong>
+                            {customer.name || 'Unknown'}
+                          </strong>
+                        </div>
+                      </div>
+                    </td>
 
-                      <td>
-                        <span className="table-email">
-                          {customer.email}
-                        </span>
-                      </td>
+                    <td>{customer.email || '-'}</td>
+                    <td>{customer.phone || '-'}</td>
+                    <td>
+                      {formatDate(customer.createdAt)}
+                    </td>
 
-                      <td>
-                        {customer.phone || 'N/A'}
-                      </td>
-
-                      <td>
-                        {formatDate(
-                          customer.createdAt
-                        )}
-                      </td>
-
-                      <td>
-                        <span className="status-badge active-status">
-                          Active
-                        </span>
-                      </td>
-
-                    </tr>
-                  )
-                )}
-
+                    <td>
+                      <span className="status-badge status-active">
+                        Active
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
-
             </table>
-
           </div>
         )}
-
-      </section>
-    </>
+      </div>
+    </div>
   );
 
-  // ---------------- SELLERS ----------------
-
   const renderSellers = () => (
-    <>
-      <header className="topbar">
-
+    <div className="page-content">
+      <div className="page-header">
         <div>
-          <p className="breadcrumb">
-            NearBuy / Sellers
-          </p>
-
           <h1>Sellers</h1>
+          <p>Manage registered shops and sellers.</p>
         </div>
 
-        <div className="topbar-right">
+        <button
+          className="refresh-button"
+          onClick={loadSellers}
+        >
+          ↻ Refresh
+        </button>
+      </div>
 
-          <button
-            className="refresh-button"
-            onClick={loadSellers}
-            disabled={sellersLoading}
-          >
-            ↻
-            {sellersLoading
-              ? 'Refreshing...'
-              : 'Refresh'}
-          </button>
-
-          <div className="top-admin">
-
-            <div className="avatar">
-              {admin?.name
-                ?.charAt(0)
-                .toUpperCase() || 'A'}
-            </div>
-
-            <div>
-              <strong>
-                {admin?.name || 'Administrator'}
-              </strong>
-
-              <small>Admin</small>
-            </div>
-
-          </div>
-
-        </div>
-
-      </header>
-
-      <section className="page-intro">
-
-        <div>
-          <h2>Seller Management</h2>
-
-          <p>
-            View registered shops and seller
-            information on the NearBuy platform.
-          </p>
-        </div>
-
-        <div className="customer-count-card">
-          <span>Total Sellers</span>
-          <strong>{sellers.length}</strong>
-        </div>
-
-      </section>
-
-      <section className="customer-panel">
-
-        <div className="customer-toolbar">
-
+      <div className="content-card">
+        <div className="table-toolbar">
           <div>
-            <h3>All Sellers</h3>
-
-            <p>
-              {filteredSellers.length} seller
-              {filteredSellers.length !== 1
-                ? 's'
-                : ''} found
-            </p>
+            <h2>Seller List</h2>
+            <span>{filteredSellers.length} sellers</span>
           </div>
 
-          <div className="customer-search">
-
-            <span>⌕</span>
-
-            <input
-              type="text"
-              placeholder="Search sellers..."
-              value={sellerSearch}
-              onChange={(e) =>
-                setSellerSearch(e.target.value)
-              }
-            />
-
-          </div>
-
+          <input
+            type="text"
+            placeholder="Search sellers..."
+            value={sellerSearch}
+            onChange={(e) =>
+              setSellerSearch(e.target.value)
+            }
+            className="search-input"
+          />
         </div>
-
-        {sellersError && (
-          <div className="dashboard-error">
-            {sellersError}
-          </div>
-        )}
 
         {sellersLoading ? (
-          <div className="table-state">
-
-            <div className="loading-spinner"></div>
-
-            <h4>Loading sellers...</h4>
-
-            <p>
-              Fetching seller information.
-            </p>
-
+          <div className="empty-state">
+            <div className="loader"></div>
+            <p>Loading sellers...</p>
+          </div>
+        ) : sellersError ? (
+          <div className="error-state">
+            <p>{sellersError}</p>
+            <button onClick={loadSellers}>
+              Try Again
+            </button>
           </div>
         ) : filteredSellers.length === 0 ? (
-          <div className="table-state">
-
-            <div className="empty-table-icon">
-              ▣
-            </div>
-
-            <h4>
-              {sellerSearch
-                ? 'No sellers found'
-                : 'No sellers yet'}
-            </h4>
-
+          <div className="empty-state">
+            <div className="empty-icon">🏪</div>
+            <h3>No sellers found</h3>
             <p>
-              {sellerSearch
-                ? 'Try a different search term.'
-                : 'Registered sellers will appear here.'}
+              There are no sellers matching your search.
             </p>
-
           </div>
         ) : (
-          <div className="customer-table-wrapper">
-
-            <table className="customer-table">
-
+          <div className="table-wrapper">
+            <table>
               <thead>
                 <tr>
                   <th>Seller</th>
@@ -1185,223 +593,116 @@ function App() {
               </thead>
 
               <tbody>
-
-                {filteredSellers.map(
-                  (seller) => (
-                    <tr key={seller._id}>
-
-                      <td>
-
-                        <div className="customer-cell">
-
-                          <div className="customer-avatar">
-                            {getInitials(
-                              seller.name
-                            )}
-                          </div>
-
-                          <div>
-                            <strong>
-                              {seller.name ||
-                                'Unnamed Seller'}
-                            </strong>
-
-                            <span>
-                              Seller
-                            </span>
-                          </div>
-
+                {filteredSellers.map((seller) => (
+                  <tr key={seller._id}>
+                    <td>
+                      <div className="user-cell">
+                        <div className="avatar seller-avatar">
+                          {seller.name
+                            ?.charAt(0)
+                            .toUpperCase() || 'S'}
                         </div>
 
-                      </td>
+                        <div>
+                          <strong>
+                            {seller.name || 'Unknown'}
+                          </strong>
+                          <small>{seller.email}</small>
+                        </div>
+                      </div>
+                    </td>
 
-                      <td>
-                        {seller.shopName || 'N/A'}
-                      </td>
+                    <td>{seller.shopName || '-'}</td>
+                    <td>{seller.category || '-'}</td>
 
-                      <td>
-                        {seller.category || 'N/A'}
-                      </td>
+                    <td>
+                      {[
+                        seller.area,
+                        seller.city,
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || '-'}
+                    </td>
 
-                      <td>
-                        {seller.city ||
-                          seller.area ||
-                          'N/A'}
-                      </td>
+                    <td>{seller.phone || '-'}</td>
 
-                      <td>
-                        {seller.phone || 'N/A'}
-                      </td>
+                    <td>
+                      {formatDate(seller.createdAt)}
+                    </td>
 
-                      <td>
-                        {formatDate(
-                          seller.createdAt
-                        )}
-                      </td>
-
-                      <td>
-                        <span className="status-badge active-status">
-                          Active
-                        </span>
-                      </td>
-
-                    </tr>
-                  )
-                )}
-
+                    <td>
+                      <span className="status-badge status-active">
+                        Active
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
-
             </table>
-
           </div>
         )}
-
-      </section>
-    </>
+      </div>
+    </div>
   );
 
-  // ---------------- REQUESTS ----------------
-
   const renderRequests = () => (
-    <>
-      <header className="topbar">
-
+    <div className="page-content">
+      <div className="page-header">
         <div>
-          <p className="breadcrumb">
-            NearBuy / Requests
-          </p>
-
           <h1>Requests</h1>
+          <p>View customer product requests.</p>
         </div>
 
-        <div className="topbar-right">
+        <button
+          className="refresh-button"
+          onClick={loadRequests}
+        >
+          ↻ Refresh
+        </button>
+      </div>
 
-          <button
-            className="refresh-button"
-            onClick={loadRequests}
-            disabled={requestsLoading}
-          >
-            ↻
-            {requestsLoading
-              ? 'Refreshing...'
-              : 'Refresh'}
-          </button>
-
-          <div className="top-admin">
-
-            <div className="avatar">
-              {admin?.name
-                ?.charAt(0)
-                .toUpperCase() || 'A'}
-            </div>
-
-            <div>
-              <strong>
-                {admin?.name || 'Administrator'}
-              </strong>
-
-              <small>Admin</small>
-            </div>
-
-          </div>
-
-        </div>
-
-      </header>
-
-      <section className="page-intro">
-
-        <div>
-          <h2>Product Request Management</h2>
-
-          <p>
-            View customer product requests submitted
-            through the NearBuy platform.
-          </p>
-        </div>
-
-        <div className="customer-count-card">
-          <span>Total Requests</span>
-          <strong>{requests.length}</strong>
-        </div>
-
-      </section>
-
-      <section className="customer-panel">
-
-        <div className="customer-toolbar">
-
+      <div className="content-card">
+        <div className="table-toolbar">
           <div>
-            <h3>All Product Requests</h3>
-
-            <p>
-              {filteredRequests.length} request
-              {filteredRequests.length !== 1
-                ? 's'
-                : ''} found
-            </p>
+            <h2>Product Requests</h2>
+            <span>{filteredRequests.length} requests</span>
           </div>
 
-          <div className="customer-search">
-
-            <span>⌕</span>
-
-            <input
-              type="text"
-              placeholder="Search requests..."
-              value={requestSearch}
-              onChange={(e) =>
-                setRequestSearch(e.target.value)
-              }
-            />
-
-          </div>
-
+          <input
+            type="text"
+            placeholder="Search requests..."
+            value={requestSearch}
+            onChange={(e) =>
+              setRequestSearch(e.target.value)
+            }
+            className="search-input"
+          />
         </div>
-
-        {requestsError && (
-          <div className="dashboard-error">
-            {requestsError}
-          </div>
-        )}
 
         {requestsLoading ? (
-          <div className="table-state">
-
-            <div className="loading-spinner"></div>
-
-            <h4>Loading requests...</h4>
-
-            <p>
-              Fetching customer request information.
-            </p>
-
+          <div className="empty-state">
+            <div className="loader"></div>
+            <p>Loading requests...</p>
+          </div>
+        ) : requestsError ? (
+          <div className="error-state">
+            <p>{requestsError}</p>
+            <button onClick={loadRequests}>
+              Try Again
+            </button>
           </div>
         ) : filteredRequests.length === 0 ? (
-          <div className="table-state">
-
-            <div className="empty-table-icon">
-              ☷
-            </div>
-
-            <h4>
-              {requestSearch
-                ? 'No requests found'
-                : 'No requests yet'}
-            </h4>
-
+          <div className="empty-state">
+            <div className="empty-icon">📋</div>
+            <h3>No requests found</h3>
             <p>
-              {requestSearch
-                ? 'Try a different search term.'
-                : 'Customer requests will appear here.'}
+              There are no product requests matching your
+              search.
             </p>
-
           </div>
         ) : (
-          <div className="customer-table-wrapper">
-
-            <table className="customer-table">
-
+          <div className="table-wrapper">
+            <table>
               <thead>
                 <tr>
                   <th>Customer</th>
@@ -1417,207 +718,506 @@ function App() {
               </thead>
 
               <tbody>
-
-                {filteredRequests.map(
-                  (request) => (
-                    <tr key={request._id}>
-
-                      <td>
-
-                        <div className="customer-cell">
-
-                          <div className="customer-avatar">
-                            {getInitials(
-                              request.customerId?.name
-                            )}
-                          </div>
-
-                          <div>
-                            <strong>
-                              {request.customerId?.name ||
-                                'Customer'}
-                            </strong>
-
-                            <span>
-                              {request.customerId?.email ||
-                                'N/A'}
-                            </span>
-                          </div>
-
+                {filteredRequests.map((request) => (
+                  <tr key={request._id}>
+                    <td>
+                      <div className="user-cell">
+                        <div className="avatar">
+                          {request.customerId?.name
+                            ?.charAt(0)
+                            .toUpperCase() || 'C'}
                         </div>
 
-                      </td>
+                        <div>
+                          <strong>
+                            {request.customerId?.name ||
+                              'Unknown'}
+                          </strong>
 
-                      <td>
-                        <strong>
-                          {request.productName ||
-                            'N/A'}
-                        </strong>
-                      </td>
+                          <small>
+                            {request.customerId?.email ||
+                              ''}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
 
-                      <td>
-                        {request.category || 'N/A'}
-                      </td>
+                    <td>
+                      <strong>
+                        {request.productName || '-'}
+                      </strong>
+                    </td>
 
-                      <td>
-                        ₹{request.budget || 0}
-                      </td>
+                    <td>{request.category || '-'}</td>
 
-                      <td>
-                        {request.quantity || 1}
-                      </td>
+                    <td>
+                      ₹
+                      {Number(
+                        request.budget || 0
+                      ).toLocaleString('en-IN')}
+                    </td>
 
-                      <td>
-                        {request.location || 'N/A'}
-                      </td>
+                    <td>{request.quantity || '-'}</td>
 
-                      <td>
-                        {request.condition || 'N/A'}
-                      </td>
+                    <td>{request.location || '-'}</td>
 
-                      <td>
-                        <span
-                          className={`status-badge ${
-                            request.status ===
-                            'Active'
-                              ? 'active-status'
-                              : ''
-                          }`}
-                        >
-                          {request.status || 'N/A'}
-                        </span>
-                      </td>
+                    <td>{request.condition || '-'}</td>
 
-                      <td>
-                        {formatDate(
-                          request.createdAt
-                        )}
-                      </td>
+                    <td>
+                      <span
+                        className={`status-badge ${getStatusClass(
+                          request.status
+                        )}`}
+                      >
+                        {request.status || 'Unknown'}
+                      </span>
+                    </td>
 
-                    </tr>
-                  )
-                )}
-
+                    <td>
+                      {formatDate(request.createdAt)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
-
             </table>
-
           </div>
         )}
-
-      </section>
-    </>
-  );
-
-  // ---------------- PLACEHOLDER PAGES ----------------
-
-  const renderPlaceholder = (title) => (
-    <div className="coming-soon-page">
-
-      <div className="coming-soon-icon">
-        ✦
       </div>
-
-      <h2>{title}</h2>
-
-      <p>
-        This section will be available
-        in the next step.
-      </p>
-
     </div>
   );
 
-  // ---------------- MAIN LAYOUT ----------------
+  const renderOrders = () => (
+    <div className="page-content">
+      <div className="page-header">
+        <div>
+          <h1>Orders</h1>
+          <p>View orders created through accepted offers.</p>
+        </div>
+
+        <button
+          className="refresh-button"
+          onClick={loadOrders}
+        >
+          ↻ Refresh
+        </button>
+      </div>
+
+      <div className="content-card">
+        <div className="table-toolbar">
+          <div>
+            <h2>Order List</h2>
+            <span>{filteredOrders.length} orders</span>
+          </div>
+
+          <input
+            type="text"
+            placeholder="Search orders..."
+            value={orderSearch}
+            onChange={(e) =>
+              setOrderSearch(e.target.value)
+            }
+            className="search-input"
+          />
+        </div>
+
+        {ordersLoading ? (
+          <div className="empty-state">
+            <div className="loader"></div>
+            <p>Loading orders...</p>
+          </div>
+        ) : ordersError ? (
+          <div className="error-state">
+            <p>{ordersError}</p>
+            <button onClick={loadOrders}>
+              Try Again
+            </button>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🛒</div>
+            <h3>No orders found</h3>
+            <p>
+              There are no orders matching your search.
+            </p>
+          </div>
+        ) : (
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Customer</th>
+                  <th>Seller</th>
+                  <th>Shop</th>
+                  <th>Price</th>
+                  <th>Condition</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredOrders.map((order) => (
+                  <tr key={order._id}>
+                    <td>
+                      <div>
+                        <strong>
+                          {order.productName || 'Order'}
+                        </strong>
+
+                        <small>
+                          #{order._id?.slice(-8)}
+                        </small>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="user-cell">
+                        <div className="avatar">
+                          {order.customerId?.name
+                            ?.charAt(0)
+                            .toUpperCase() || 'C'}
+                        </div>
+
+                        <div>
+                          <strong>
+                            {order.customerId?.name ||
+                              'Unknown'}
+                          </strong>
+
+                          <small>
+                            {order.customerId?.phone ||
+                              ''}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      {order.sellerId?.name || 'Unknown'}
+                    </td>
+
+                    <td>
+                      {order.sellerId?.shopName || '-'}
+                    </td>
+
+                    <td>
+                      <strong>
+                        ₹
+                        {Number(
+                          order.price || 0
+                        ).toLocaleString('en-IN')}
+                      </strong>
+                    </td>
+
+                    <td>
+                      {order.condition || '-'}
+                    </td>
+
+                    <td>
+                      <span
+                        className={`status-badge ${getStatusClass(
+                          order.status
+                        )}`}
+                      >
+                        {order.status || 'Unknown'}
+                      </span>
+                    </td>
+
+                    <td>
+                      {formatDate(order.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const checkApiStatus = async () => {
+    try {
+      setApiChecking(true);
+      setApiStatus('Checking...');
+
+      const response = await fetch(`${API_URL}/`);
+
+      if (!response.ok) {
+        throw new Error('Backend is not responding correctly.');
+      }
+
+      setApiStatus('Connected');
+    } catch (error) {
+      setApiStatus('Not connected');
+    } finally {
+      setApiChecking(false);
+    }
+  };
+
+  const renderSettings = () => {
+    let savedAdmin = {};
+
+    try {
+      savedAdmin = JSON.parse(
+        localStorage.getItem('adminUser') || '{}'
+      );
+    } catch (error) {
+      savedAdmin = {};
+    }
+
+    return (
+      <div className="page-content">
+        <div className="page-header">
+          <div>
+            <h1>Settings</h1>
+            <p>Manage your admin panel information.</p>
+          </div>
+        </div>
+
+        <div className="settings-grid">
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon">👤</div>
+              <div>
+                <h2>Admin Profile</h2>
+                <p>Currently signed-in administrator</p>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <span>Name</span>
+              <strong>{savedAdmin.name || 'Administrator'}</strong>
+            </div>
+
+            <div className="settings-row">
+              <span>Email</span>
+              <strong>{savedAdmin.email || email || 'admin@nearbuy.com'}</strong>
+            </div>
+
+            <div className="settings-row">
+              <span>Role</span>
+              <strong>Admin</strong>
+            </div>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon">🌐</div>
+              <div>
+                <h2>Backend Status</h2>
+                <p>Check the connection to your backend API</p>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <span>API Status</span>
+              <strong className={apiStatus === 'Connected' ? 'settings-success' : 'settings-muted'}>
+                {apiStatus}
+              </strong>
+            </div>
+
+            <div className="settings-row settings-column">
+              <span>Backend URL</span>
+              <small>{API_URL}</small>
+            </div>
+
+            <button
+              className="refresh-button"
+              onClick={checkApiStatus}
+              disabled={apiChecking}
+            >
+              {apiChecking ? 'Checking...' : 'Check Connection'}
+            </button>
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon">ℹ️</div>
+              <div>
+                <h2>Platform Information</h2>
+                <p>Basic information about the NearBuy project</p>
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <span>Application</span>
+              <strong>NearBuy</strong>
+            </div>
+
+            <div className="settings-row">
+              <span>Panel</span>
+              <strong>Admin Panel</strong>
+            </div>
+
+            <div className="settings-row">
+              <span>Version</span>
+              <strong>1.0.0</strong>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  };
+
+  const renderComingSoon = (title) => (
+    <div className="page-content">
+      <div className="page-header">
+        <div>
+          <h1>{title}</h1>
+          <p>Manage your NearBuy platform.</p>
+        </div>
+      </div>
+
+      <div className="coming-soon-card">
+        <div className="empty-icon">⚙️</div>
+        <h2>{title}</h2>
+        <p>This section will be available soon.</p>
+      </div>
+    </div>
+  );
+
+  if (!isLoggedIn) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <div className="brand">
+            <img className="brand-logo" src={logo} alt="NearBuy logo" />
+            <div>
+              <h2>NearBuy</h2>
+              <span>Admin Panel</span>
+            </div>
+          </div>
+
+          <div className="login-heading">
+            <h1>Welcome back</h1>
+            <p>Sign in to manage the platform</p>
+          </div>
+
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label>Email</label>
+
+              <input
+                type="email"
+                placeholder="Enter admin email"
+                value={email}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Password</label>
+
+              <input
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
+              />
+            </div>
+
+            {loginError && (
+              <div className="login-error">
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="login-button"
+              disabled={loginLoading}
+            >
+              {loginLoading
+                ? 'Signing in...'
+                : 'Sign In'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-layout">
-
       <aside className="sidebar">
-
         <div className="sidebar-brand">
-
-          <img
-            src={nearbuyLogo}
-            alt="NearBuy Logo"
-            className="sidebar-logo"
-          />
+          <img className="sidebar-logo" src={logo} alt="NearBuy logo" />
 
           <div>
             <h2>NearBuy</h2>
             <span>Admin Panel</span>
           </div>
-
         </div>
 
         <nav className="sidebar-nav">
-
-          <p className="nav-title">
-            MAIN MENU
-          </p>
-
           <button
-            className={`nav-item ${
+            className={
               activePage === 'dashboard'
-                ? 'active'
-                : ''
-            }`}
+                ? 'nav-item active'
+                : 'nav-item'
+            }
             onClick={() =>
               setActivePage('dashboard')
             }
           >
-            <span>▦</span>
+            <span>▣</span>
             Dashboard
           </button>
 
           <button
-            className={`nav-item ${
+            className={
               activePage === 'customers'
-                ? 'active'
-                : ''
-            }`}
+                ? 'nav-item active'
+                : 'nav-item'
+            }
             onClick={() =>
               setActivePage('customers')
             }
           >
-            <span>♙</span>
+            <span>👤</span>
             Customers
           </button>
 
           <button
-            className={`nav-item ${
+            className={
               activePage === 'sellers'
-                ? 'active'
-                : ''
-            }`}
+                ? 'nav-item active'
+                : 'nav-item'
+            }
             onClick={() =>
               setActivePage('sellers')
             }
           >
-            <span>▣</span>
+            <span>🏪</span>
             Sellers
           </button>
 
           <button
-            className={`nav-item ${
+            className={
               activePage === 'requests'
-                ? 'active'
-                : ''
-            }`}
+                ? 'nav-item active'
+                : 'nav-item'
+            }
             onClick={() =>
               setActivePage('requests')
             }
           >
-            <span>☷</span>
+            <span>📋</span>
             Requests
           </button>
 
           <button
-            className={`nav-item ${
+            className={
               activePage === 'orders'
-                ? 'active'
-                : ''
-            }`}
+                ? 'nav-item active'
+                : 'nav-item'
+            }
             onClick={() =>
               setActivePage('orders')
             }
@@ -1626,51 +1226,22 @@ function App() {
             Orders
           </button>
 
-          <p className="nav-title second">
-            SYSTEM
-          </p>
-
           <button
-            className={`nav-item ${
+            className={
               activePage === 'settings'
-                ? 'active'
-                : ''
-            }`}
+                ? 'nav-item active'
+                : 'nav-item'
+            }
             onClick={() =>
               setActivePage('settings')
             }
           >
-            <span>⚙</span>
+            <span>⚙️</span>
             Settings
           </button>
-
         </nav>
 
         <div className="sidebar-bottom">
-
-          <div className="admin-mini-profile">
-
-            <div className="avatar">
-              {admin?.name
-                ?.charAt(0)
-                .toUpperCase() || 'A'}
-            </div>
-
-            <div className="admin-mini-info">
-
-              <strong>
-                {admin?.name ||
-                  'Administrator'}
-              </strong>
-
-              <span>
-                Administrator
-              </span>
-
-            </div>
-
-          </div>
-
           <button
             className="logout-button"
             onClick={handleLogout}
@@ -1678,12 +1249,26 @@ function App() {
             <span>↪</span>
             Logout
           </button>
-
         </div>
-
       </aside>
 
-      <main className="main-content">
+      <main className="main-area">
+        <header className="topbar">
+          <div>
+            <span className="topbar-label">
+              Administration
+            </span>
+          </div>
+
+          <div className="admin-user">
+            <img className="admin-avatar" src={logo} alt="Admin logo" />
+
+            <div>
+              <strong>Administrator</strong>
+              <small>Admin</small>
+            </div>
+          </div>
+        </header>
 
         {activePage === 'dashboard' &&
           renderDashboard()}
@@ -1698,13 +1283,11 @@ function App() {
           renderRequests()}
 
         {activePage === 'orders' &&
-          renderPlaceholder('Orders')}
+          renderOrders()}
 
         {activePage === 'settings' &&
-          renderPlaceholder('Settings')}
-
+          renderSettings()}
       </main>
-
     </div>
   );
 }

@@ -372,4 +372,93 @@ router.put('/change-password', async (req, res) => {
   }
 });
 
+// Change email address
+router.put('/change-email', async (req, res) => {
+  try {
+    const { userId, currentEmail, newEmail, password } = req.body;
+
+    if (!userId || !currentEmail || !newEmail || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required.',
+      });
+    }
+
+    const cleanCurrentEmail = currentEmail.trim().toLowerCase();
+    const cleanNewEmail = newEmail.trim().toLowerCase();
+
+    if (cleanCurrentEmail === cleanNewEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'New email must be different from the current email.',
+      });
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(cleanNewEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address.',
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+      });
+    }
+
+    if (user.email.toLowerCase() !== cleanCurrentEmail) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current email is incorrect.',
+      });
+    }
+
+    if (user.password !== password) {
+      return res.status(401).json({
+        success: false,
+        message: 'Incorrect password.',
+      });
+    }
+
+    const existingUser = await User.findOne({
+      email: cleanNewEmail,
+      _id: { $ne: userId },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'This email is already registered.',
+      });
+    }
+
+    user.email = cleanNewEmail;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Email updated successfully.',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Change email error:', error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to change email.',
+    });
+  }
+});
+
 module.exports = router;
