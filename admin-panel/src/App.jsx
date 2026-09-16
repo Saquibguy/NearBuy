@@ -14,6 +14,7 @@ function App() {
 
   const [activePage, setActivePage] = useState('dashboard');
 
+  // Dashboard
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
 
@@ -27,15 +28,25 @@ function App() {
   const [recentRequests, setRecentRequests] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
 
+  // Customers
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customersError, setCustomersError] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
 
+  // Sellers
   const [sellers, setSellers] = useState([]);
   const [sellersLoading, setSellersLoading] = useState(false);
   const [sellersError, setSellersError] = useState('');
   const [sellerSearch, setSellerSearch] = useState('');
+
+  // Requests
+  const [requests, setRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState('');
+  const [requestSearch, setRequestSearch] = useState('');
+
+  // ---------------- LOGIN ----------------
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -82,6 +93,8 @@ function App() {
     }
   };
 
+  // ---------------- DASHBOARD ----------------
+
   const loadDashboard = async () => {
     try {
       setDashboardLoading(true);
@@ -121,6 +134,8 @@ function App() {
     }
   };
 
+  // ---------------- CUSTOMERS ----------------
+
   const loadCustomers = async () => {
     try {
       setCustomersLoading(true);
@@ -149,6 +164,8 @@ function App() {
       setCustomersLoading(false);
     }
   };
+
+  // ---------------- SELLERS ----------------
 
   const loadSellers = async () => {
     try {
@@ -179,6 +196,39 @@ function App() {
     }
   };
 
+  // ---------------- REQUESTS ----------------
+
+  const loadRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      setRequestsError('');
+
+      const response = await fetch(
+        `${API_URL}/api/admin/requests`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || 'Unable to load requests.'
+        );
+      }
+
+      setRequests(data.requests || []);
+    } catch (error) {
+      console.error('Requests error:', error);
+
+      setRequestsError(
+        'Unable to load request data.'
+      );
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  // ---------------- EFFECTS ----------------
+
   useEffect(() => {
     if (loggedIn) {
       loadDashboard();
@@ -195,7 +245,13 @@ function App() {
     if (activePage === 'sellers') {
       loadSellers();
     }
+
+    if (activePage === 'requests') {
+      loadRequests();
+    }
   }, [loggedIn, activePage]);
+
+  // ---------------- LOGOUT ----------------
 
   const handleLogout = () => {
     setLoggedIn(false);
@@ -206,9 +262,10 @@ function App() {
 
     setCustomers([]);
     setSellers([]);
-    setCustomerSearch('');
-    setSellerSearch('');
+    setRequests([]);
   };
+
+  // ---------------- HELPERS ----------------
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
@@ -224,7 +281,7 @@ function App() {
   };
 
   const getInitials = (name) => {
-    if (!name) return 'CU';
+    if (!name) return 'NB';
 
     return name
       .split(' ')
@@ -233,6 +290,8 @@ function App() {
       .join('')
       .toUpperCase();
   };
+
+  // ---------------- FILTERS ----------------
 
   const filteredCustomers = customers.filter(
     (customer) => {
@@ -280,9 +339,6 @@ function App() {
         seller.category
           ?.toLowerCase()
           .includes(search) ||
-        seller.area
-          ?.toLowerCase()
-          .includes(search) ||
         seller.city
           ?.toLowerCase()
           .includes(search)
@@ -290,17 +346,51 @@ function App() {
     }
   );
 
+  const filteredRequests = requests.filter(
+    (request) => {
+      const search = requestSearch
+        .toLowerCase()
+        .trim();
+
+      if (!search) return true;
+
+      return (
+        request.productName
+          ?.toLowerCase()
+          .includes(search) ||
+        request.category
+          ?.toLowerCase()
+          .includes(search) ||
+        request.location
+          ?.toLowerCase()
+          .includes(search) ||
+        request.condition
+          ?.toLowerCase()
+          .includes(search) ||
+        request.status
+          ?.toLowerCase()
+          .includes(search) ||
+        request.customerId?.name
+          ?.toLowerCase()
+          .includes(search) ||
+        request.customerId?.email
+          ?.toLowerCase()
+          .includes(search)
+      );
+    }
+  );
+
+  // ---------------- LOGIN PAGE ----------------
+
   if (!loggedIn) {
     return (
       <div className="login-page">
-
         <div className="login-background-shape shape-one"></div>
         <div className="login-background-shape shape-two"></div>
 
         <div className="login-card">
 
           <div className="brand">
-
             <img
               src={nearbuyLogo}
               alt="NearBuy Logo"
@@ -311,27 +401,22 @@ function App() {
               <h2>NearBuy</h2>
               <span>Admin Panel</span>
             </div>
-
           </div>
 
           <div className="login-heading">
-
             <h1>Welcome back</h1>
 
             <p>
               Sign in to manage your NearBuy platform.
             </p>
-
           </div>
 
           <form onSubmit={handleLogin}>
 
             <div className="form-group">
-
               <label>Email Address</label>
 
               <div className="input-wrapper">
-
                 <span>✉</span>
 
                 <input
@@ -342,17 +427,13 @@ function App() {
                     setEmail(e.target.value)
                   }
                 />
-
               </div>
-
             </div>
 
             <div className="form-group">
-
               <label>Password</label>
 
               <div className="input-wrapper">
-
                 <span>●</span>
 
                 <input
@@ -363,9 +444,7 @@ function App() {
                     setPassword(e.target.value)
                   }
                 />
-
               </div>
-
             </div>
 
             <button
@@ -373,13 +452,11 @@ function App() {
               type="submit"
               disabled={loading}
             >
-
               {loading
                 ? 'Signing in...'
                 : 'Sign In'}
 
               {!loading && <span>→</span>}
-
             </button>
 
           </form>
@@ -390,23 +467,22 @@ function App() {
           </div>
 
         </div>
-
       </div>
     );
   }
+
+  // ---------------- DASHBOARD ----------------
 
   const renderDashboard = () => (
     <>
       <header className="topbar">
 
         <div>
-
           <p className="breadcrumb">
             NearBuy / Dashboard
           </p>
 
           <h1>Dashboard</h1>
-
         </div>
 
         <div className="topbar-right">
@@ -425,13 +501,11 @@ function App() {
             </div>
 
             <div>
-
               <strong>
                 {admin?.name || 'Administrator'}
               </strong>
 
               <small>Admin</small>
-
             </div>
 
           </div>
@@ -443,7 +517,6 @@ function App() {
       <section className="welcome-section">
 
         <div>
-
           <h2>
             Good to see you,{' '}
             {admin?.name || 'Admin'}!
@@ -452,11 +525,9 @@ function App() {
           <p>
             Here's what's happening across NearBuy today.
           </p>
-
         </div>
 
         <div className="date-card">
-
           <span>Today</span>
 
           <strong>
@@ -469,7 +540,6 @@ function App() {
               }
             )}
           </strong>
-
         </div>
 
       </section>
@@ -483,13 +553,11 @@ function App() {
       <section className="stats-grid">
 
         <div className="stat-card">
-
           <div className="stat-icon blue">
             ♙
           </div>
 
           <div>
-
             <span>Total Customers</span>
 
             <h3>
@@ -501,19 +569,15 @@ function App() {
             <small>
               Registered customers
             </small>
-
           </div>
-
         </div>
 
         <div className="stat-card">
-
           <div className="stat-icon green">
             ▣
           </div>
 
           <div>
-
             <span>Total Sellers</span>
 
             <h3>
@@ -525,19 +589,15 @@ function App() {
             <small>
               Registered shops
             </small>
-
           </div>
-
         </div>
 
         <div className="stat-card">
-
           <div className="stat-icon orange">
             ☷
           </div>
 
           <div>
-
             <span>Product Requests</span>
 
             <h3>
@@ -549,19 +609,15 @@ function App() {
             <small>
               Customer requests
             </small>
-
           </div>
-
         </div>
 
         <div className="stat-card">
-
           <div className="stat-icon purple">
             🛒
           </div>
 
           <div>
-
             <span>Total Orders</span>
 
             <h3>
@@ -573,9 +629,7 @@ function App() {
             <small>
               Confirmed orders
             </small>
-
           </div>
-
         </div>
 
       </section>
@@ -587,13 +641,11 @@ function App() {
           <div className="card-header">
 
             <div>
-
               <h3>Recent Requests</h3>
 
               <p>
                 Latest customer product requests
               </p>
-
             </div>
 
             <button
@@ -607,7 +659,6 @@ function App() {
           </div>
 
           {recentRequests.length === 0 ? (
-
             <div className="empty-state">
 
               <div className="empty-icon">
@@ -621,13 +672,10 @@ function App() {
               </p>
 
             </div>
-
           ) : (
-
             <div className="data-list">
 
               {recentRequests.map((request) => (
-
                 <div
                   className="data-row"
                   key={request._id}
@@ -665,11 +713,9 @@ function App() {
                   </div>
 
                 </div>
-
               ))}
 
             </div>
-
           )}
 
         </div>
@@ -679,13 +725,11 @@ function App() {
           <div className="card-header">
 
             <div>
-
               <h3>Recent Orders</h3>
 
               <p>
                 Latest orders
               </p>
-
             </div>
 
             <button
@@ -699,7 +743,6 @@ function App() {
           </div>
 
           {recentOrders.length === 0 ? (
-
             <div className="empty-state">
 
               <div className="empty-icon">
@@ -714,13 +757,10 @@ function App() {
               </p>
 
             </div>
-
           ) : (
-
             <div className="data-list">
 
               {recentOrders.map((order) => (
-
                 <div
                   className="data-row"
                   key={order._id}
@@ -759,11 +799,9 @@ function App() {
                   </div>
 
                 </div>
-
               ))}
 
             </div>
-
           )}
 
         </div>
@@ -772,18 +810,18 @@ function App() {
     </>
   );
 
+  // ---------------- CUSTOMERS ----------------
+
   const renderCustomers = () => (
     <>
       <header className="topbar">
 
         <div>
-
           <p className="breadcrumb">
             NearBuy / Customers
           </p>
 
           <h1>Customers</h1>
-
         </div>
 
         <div className="topbar-right">
@@ -808,13 +846,11 @@ function App() {
             </div>
 
             <div>
-
               <strong>
                 {admin?.name || 'Administrator'}
               </strong>
 
               <small>Admin</small>
-
             </div>
 
           </div>
@@ -826,24 +862,17 @@ function App() {
       <section className="page-intro">
 
         <div>
-
           <h2>Customer Management</h2>
 
           <p>
             View and manage customers registered
             on the NearBuy platform.
           </p>
-
         </div>
 
         <div className="customer-count-card">
-
           <span>Total Customers</span>
-
-          <strong>
-            {customers.length}
-          </strong>
-
+          <strong>{customers.length}</strong>
         </div>
 
       </section>
@@ -853,7 +882,6 @@ function App() {
         <div className="customer-toolbar">
 
           <div>
-
             <h3>All Customers</h3>
 
             <p>
@@ -862,7 +890,6 @@ function App() {
                 ? 's'
                 : ''} found
             </p>
-
           </div>
 
           <div className="customer-search">
@@ -874,9 +901,7 @@ function App() {
               placeholder="Search customers..."
               value={customerSearch}
               onChange={(e) =>
-                setCustomerSearch(
-                  e.target.value
-                )
+                setCustomerSearch(e.target.value)
               }
             />
 
@@ -891,7 +916,6 @@ function App() {
         )}
 
         {customersLoading ? (
-
           <div className="table-state">
 
             <div className="loading-spinner"></div>
@@ -903,9 +927,7 @@ function App() {
             </p>
 
           </div>
-
         ) : filteredCustomers.length === 0 ? (
-
           <div className="table-state">
 
             <div className="empty-table-icon">
@@ -925,32 +947,25 @@ function App() {
             </p>
 
           </div>
-
         ) : (
-
           <div className="customer-table-wrapper">
 
             <table className="customer-table">
 
               <thead>
-
                 <tr>
-
                   <th>Customer</th>
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Joined</th>
                   <th>Status</th>
-
                 </tr>
-
               </thead>
 
               <tbody>
 
                 {filteredCustomers.map(
                   (customer) => (
-
                     <tr key={customer._id}>
 
                       <td>
@@ -964,7 +979,6 @@ function App() {
                           </div>
 
                           <div>
-
                             <strong>
                               {customer.name ||
                                 'Unnamed Customer'}
@@ -973,7 +987,6 @@ function App() {
                             <span>
                               Customer
                             </span>
-
                           </div>
 
                         </div>
@@ -981,11 +994,9 @@ function App() {
                       </td>
 
                       <td>
-
                         <span className="table-email">
                           {customer.email}
                         </span>
-
                       </td>
 
                       <td>
@@ -999,15 +1010,12 @@ function App() {
                       </td>
 
                       <td>
-
                         <span className="status-badge active-status">
                           Active
                         </span>
-
                       </td>
 
                     </tr>
-
                   )
                 )}
 
@@ -1016,25 +1024,24 @@ function App() {
             </table>
 
           </div>
-
         )}
 
       </section>
     </>
   );
 
+  // ---------------- SELLERS ----------------
+
   const renderSellers = () => (
     <>
       <header className="topbar">
 
         <div>
-
           <p className="breadcrumb">
             NearBuy / Sellers
           </p>
 
           <h1>Sellers</h1>
-
         </div>
 
         <div className="topbar-right">
@@ -1059,13 +1066,11 @@ function App() {
             </div>
 
             <div>
-
               <strong>
                 {admin?.name || 'Administrator'}
               </strong>
 
               <small>Admin</small>
-
             </div>
 
           </div>
@@ -1077,24 +1082,17 @@ function App() {
       <section className="page-intro">
 
         <div>
-
           <h2>Seller Management</h2>
 
           <p>
-            View and manage sellers and shops
-            registered on the NearBuy platform.
+            View registered shops and seller
+            information on the NearBuy platform.
           </p>
-
         </div>
 
         <div className="customer-count-card">
-
           <span>Total Sellers</span>
-
-          <strong>
-            {sellers.length}
-          </strong>
-
+          <strong>{sellers.length}</strong>
         </div>
 
       </section>
@@ -1104,7 +1102,6 @@ function App() {
         <div className="customer-toolbar">
 
           <div>
-
             <h3>All Sellers</h3>
 
             <p>
@@ -1113,7 +1110,6 @@ function App() {
                 ? 's'
                 : ''} found
             </p>
-
           </div>
 
           <div className="customer-search">
@@ -1122,12 +1118,10 @@ function App() {
 
             <input
               type="text"
-              placeholder="Search sellers or shops..."
+              placeholder="Search sellers..."
               value={sellerSearch}
               onChange={(e) =>
-                setSellerSearch(
-                  e.target.value
-                )
+                setSellerSearch(e.target.value)
               }
             />
 
@@ -1142,7 +1136,6 @@ function App() {
         )}
 
         {sellersLoading ? (
-
           <div className="table-state">
 
             <div className="loading-spinner"></div>
@@ -1154,9 +1147,7 @@ function App() {
             </p>
 
           </div>
-
         ) : filteredSellers.length === 0 ? (
-
           <div className="table-state">
 
             <div className="empty-table-icon">
@@ -1176,17 +1167,13 @@ function App() {
             </p>
 
           </div>
-
         ) : (
-
           <div className="customer-table-wrapper">
 
             <table className="customer-table">
 
               <thead>
-
                 <tr>
-
                   <th>Seller</th>
                   <th>Shop</th>
                   <th>Category</th>
@@ -1194,16 +1181,13 @@ function App() {
                   <th>Phone</th>
                   <th>Joined</th>
                   <th>Status</th>
-
                 </tr>
-
               </thead>
 
               <tbody>
 
                 {filteredSellers.map(
                   (seller) => (
-
                     <tr key={seller._id}>
 
                       <td>
@@ -1217,17 +1201,14 @@ function App() {
                           </div>
 
                           <div>
-
                             <strong>
                               {seller.name ||
                                 'Unnamed Seller'}
                             </strong>
 
                             <span>
-                              {seller.email ||
-                                'Seller'}
+                              Seller
                             </span>
-
                           </div>
 
                         </div>
@@ -1235,11 +1216,7 @@ function App() {
                       </td>
 
                       <td>
-
-                        <strong>
-                          {seller.shopName || 'N/A'}
-                        </strong>
-
+                        {seller.shopName || 'N/A'}
                       </td>
 
                       <td>
@@ -1247,13 +1224,9 @@ function App() {
                       </td>
 
                       <td>
-
-                        {seller.area
-                          ? `${seller.area}, `
-                          : ''}
-
-                        {seller.city || 'N/A'}
-
+                        {seller.city ||
+                          seller.area ||
+                          'N/A'}
                       </td>
 
                       <td>
@@ -1267,15 +1240,12 @@ function App() {
                       </td>
 
                       <td>
-
                         <span className="status-badge active-status">
                           Active
                         </span>
-
                       </td>
 
                     </tr>
-
                   )
                 )}
 
@@ -1284,12 +1254,281 @@ function App() {
             </table>
 
           </div>
-
         )}
 
       </section>
     </>
   );
+
+  // ---------------- REQUESTS ----------------
+
+  const renderRequests = () => (
+    <>
+      <header className="topbar">
+
+        <div>
+          <p className="breadcrumb">
+            NearBuy / Requests
+          </p>
+
+          <h1>Requests</h1>
+        </div>
+
+        <div className="topbar-right">
+
+          <button
+            className="refresh-button"
+            onClick={loadRequests}
+            disabled={requestsLoading}
+          >
+            ↻
+            {requestsLoading
+              ? 'Refreshing...'
+              : 'Refresh'}
+          </button>
+
+          <div className="top-admin">
+
+            <div className="avatar">
+              {admin?.name
+                ?.charAt(0)
+                .toUpperCase() || 'A'}
+            </div>
+
+            <div>
+              <strong>
+                {admin?.name || 'Administrator'}
+              </strong>
+
+              <small>Admin</small>
+            </div>
+
+          </div>
+
+        </div>
+
+      </header>
+
+      <section className="page-intro">
+
+        <div>
+          <h2>Product Request Management</h2>
+
+          <p>
+            View customer product requests submitted
+            through the NearBuy platform.
+          </p>
+        </div>
+
+        <div className="customer-count-card">
+          <span>Total Requests</span>
+          <strong>{requests.length}</strong>
+        </div>
+
+      </section>
+
+      <section className="customer-panel">
+
+        <div className="customer-toolbar">
+
+          <div>
+            <h3>All Product Requests</h3>
+
+            <p>
+              {filteredRequests.length} request
+              {filteredRequests.length !== 1
+                ? 's'
+                : ''} found
+            </p>
+          </div>
+
+          <div className="customer-search">
+
+            <span>⌕</span>
+
+            <input
+              type="text"
+              placeholder="Search requests..."
+              value={requestSearch}
+              onChange={(e) =>
+                setRequestSearch(e.target.value)
+              }
+            />
+
+          </div>
+
+        </div>
+
+        {requestsError && (
+          <div className="dashboard-error">
+            {requestsError}
+          </div>
+        )}
+
+        {requestsLoading ? (
+          <div className="table-state">
+
+            <div className="loading-spinner"></div>
+
+            <h4>Loading requests...</h4>
+
+            <p>
+              Fetching customer request information.
+            </p>
+
+          </div>
+        ) : filteredRequests.length === 0 ? (
+          <div className="table-state">
+
+            <div className="empty-table-icon">
+              ☷
+            </div>
+
+            <h4>
+              {requestSearch
+                ? 'No requests found'
+                : 'No requests yet'}
+            </h4>
+
+            <p>
+              {requestSearch
+                ? 'Try a different search term.'
+                : 'Customer requests will appear here.'}
+            </p>
+
+          </div>
+        ) : (
+          <div className="customer-table-wrapper">
+
+            <table className="customer-table">
+
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th>Budget</th>
+                  <th>Qty</th>
+                  <th>Location</th>
+                  <th>Condition</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
+                {filteredRequests.map(
+                  (request) => (
+                    <tr key={request._id}>
+
+                      <td>
+
+                        <div className="customer-cell">
+
+                          <div className="customer-avatar">
+                            {getInitials(
+                              request.customerId?.name
+                            )}
+                          </div>
+
+                          <div>
+                            <strong>
+                              {request.customerId?.name ||
+                                'Customer'}
+                            </strong>
+
+                            <span>
+                              {request.customerId?.email ||
+                                'N/A'}
+                            </span>
+                          </div>
+
+                        </div>
+
+                      </td>
+
+                      <td>
+                        <strong>
+                          {request.productName ||
+                            'N/A'}
+                        </strong>
+                      </td>
+
+                      <td>
+                        {request.category || 'N/A'}
+                      </td>
+
+                      <td>
+                        ₹{request.budget || 0}
+                      </td>
+
+                      <td>
+                        {request.quantity || 1}
+                      </td>
+
+                      <td>
+                        {request.location || 'N/A'}
+                      </td>
+
+                      <td>
+                        {request.condition || 'N/A'}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`status-badge ${
+                            request.status ===
+                            'Active'
+                              ? 'active-status'
+                              : ''
+                          }`}
+                        >
+                          {request.status || 'N/A'}
+                        </span>
+                      </td>
+
+                      <td>
+                        {formatDate(
+                          request.createdAt
+                        )}
+                      </td>
+
+                    </tr>
+                  )
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+        )}
+
+      </section>
+    </>
+  );
+
+  // ---------------- PLACEHOLDER PAGES ----------------
+
+  const renderPlaceholder = (title) => (
+    <div className="coming-soon-page">
+
+      <div className="coming-soon-icon">
+        ✦
+      </div>
+
+      <h2>{title}</h2>
+
+      <p>
+        This section will be available
+        in the next step.
+      </p>
+
+    </div>
+  );
+
+  // ---------------- MAIN LAYOUT ----------------
 
   return (
     <div className="admin-layout">
@@ -1305,11 +1544,8 @@ function App() {
           />
 
           <div>
-
             <h2>NearBuy</h2>
-
             <span>Admin Panel</span>
-
           </div>
 
         </div>
@@ -1439,10 +1675,8 @@ function App() {
             className="logout-button"
             onClick={handleLogout}
           >
-
             <span>↪</span>
             Logout
-
           </button>
 
         </div>
@@ -1460,31 +1694,14 @@ function App() {
         {activePage === 'sellers' &&
           renderSellers()}
 
-        {activePage !== 'dashboard' &&
-          activePage !== 'customers' &&
-          activePage !== 'sellers' && (
+        {activePage === 'requests' &&
+          renderRequests()}
 
-            <div className="coming-soon-page">
+        {activePage === 'orders' &&
+          renderPlaceholder('Orders')}
 
-              <div className="coming-soon-icon">
-                ✦
-              </div>
-
-              <h2>
-                {activePage
-                  .charAt(0)
-                  .toUpperCase() +
-                  activePage.slice(1)}
-              </h2>
-
-              <p>
-                This section will be available
-                in the next step.
-              </p>
-
-            </div>
-
-          )}
+        {activePage === 'settings' &&
+          renderPlaceholder('Settings')}
 
       </main>
 
