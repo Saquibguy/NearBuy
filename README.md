@@ -33,11 +33,26 @@ NearBuy follows a **reverse marketplace** model.
 6. Track submitted offers
 7. Manage shop profile and location
 
+### Admin Flow
+
+1. Log in to the Admin Panel
+2. View platform dashboard
+3. Manage customers
+4. Manage sellers
+5. View customer requests
+6. View orders
+7. Check backend/API status
+8. Manage admin account settings
+9. Change admin password
+10. Change admin email
+11. Logout securely
+
 ---
 
 ## ✨ Features
 
 ### Customer
+
 - Customer registration and login
 - Saved location
 - Post product requests
@@ -49,6 +64,7 @@ NearBuy follows a **reverse marketplace** model.
 - Change password
 
 ### Seller
+
 - Seller registration and login
 - Shop profile
 - View nearby customer requests
@@ -59,62 +75,107 @@ NearBuy follows a **reverse marketplace** model.
 - Manage shop location
 - Change password
 
+### Admin Panel
+
+- Admin authentication
+- Dashboard
+- Customer management
+- Seller management
+- Customer request management
+- Order management
+- Search and filter records
+- Backend/API connection status
+- Admin profile information
+- Change password
+- Change email
+- Logout
+
 ### Backend
+
 - REST API
 - User authentication
 - Request management
 - Offer management
 - Order management
-- MongoDB database
+- Admin management
+- MongoDB database integration
 
 ---
 
 ## 🛠️ Technologies Used
 
-### Frontend
+### Mobile Frontend
+
 - React Native
 - Expo
 - TypeScript
 - Expo Router
 
+### Admin Panel
+
+- React
+- Vite
+- JavaScript
+- CSS
+
 ### Backend
+
 - Node.js
 - Express.js
 
 ### Database
+
 - MongoDB Atlas
 
 ### Development & Testing
+
 - Visual Studio Code
 - Postman / Thunder Client
 - Git
 - GitHub
 - Expo EAS
 
+### Deployment
+
+- Render for Backend
+- Vercel for Admin Panel
+
 ---
 
 ## 🏗️ System Architecture
 
 ```text
-┌─────────────────────┐
-│   React Native App  │
-│      (Expo)         │
-└──────────┬──────────┘
-           │
-           │ REST API
-           ▼
-┌─────────────────────┐
-│   Node.js + Express │
-│       Backend       │
-└──────────┬──────────┘
-           │
-           │ MongoDB Driver
-           ▼
-┌─────────────────────┐
-│    MongoDB Atlas    │
-│      Database       │
-└─────────────────────┘
+                    ┌──────────────────────┐
+                    │   React Native App   │
+                    │       (Expo)         │
+                    └──────────┬───────────┘
+                               │
+                               │ REST API
+                               ▼
+                    ┌──────────────────────┐
+                    │  Node.js + Express   │
+                    │       Backend        │
+                    └──────────┬───────────┘
+                               │
+                               │ MongoDB Driver
+                               ▼
+                    ┌──────────────────────┐
+                    │     MongoDB Atlas    │
+                    │       Database       │
+                    └──────────────────────┘
 
+
+                    ┌──────────────────────┐
+                    │   React Admin Panel  │
+                    │    (Vite + React)    │
+                    └──────────┬───────────┘
+                               │
+                               │ REST API
+                               ▼
+                    ┌──────────────────────┐
+                    │  Node.js + Express   │
+                    │       Backend        │
+                    └──────────────────────┘
 
 🔄 How NearBuy Works
 
@@ -137,6 +198,10 @@ Customer Accepts Offer
    │
    ▼
 Order Created
+   │
+   ▼
+Admin Can View Request and Order
+
 
 📂 Project Structure
 
@@ -163,10 +228,21 @@ NearBuy/
 │   ├── server.js
 │   └── package.json
 │
+├── admin-panel/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── App.css
+│   │   ├── index.css
+│   │   └── ...
+│   ├── public/
+│   ├── package.json
+│   └── vite.config.js
+│
 ├── assets/
 ├── app.json
 ├── eas.json
 ├── package.json
+├── LICENSE
 └── README.md
 
 🚀 Getting Started
@@ -179,7 +255,8 @@ npm
 Expo CLI / Expo tools
 Git
 MongoDB Atlas account
-Frontend
+
+📱 Mobile App Setup
 
 Clone the repository:
 
@@ -196,6 +273,8 @@ npm install
 Start the Expo development server:
 
 npx expo start
+
+
 ⚙️ Backend Setup
 
 Go to the backend folder:
@@ -215,13 +294,48 @@ Start the backend:
 
 npm start
 
-The backend provides REST API endpoints for authentication, requests, offers, and orders.
+The backend provides REST API endpoints for authentication, requests, offers, orders, and admin operations.
+
+
+🖥️ Admin Panel Setup
+
+From the project root:
+
+cd admin-panel
+
+Install dependencies:
+
+npm install
+
+Start the Admin Panel development server:
+
+npm run dev
+
+Vite will display the local development URL, for example:
+
+http://localhost:5173
+
+
+🌐 Deployment
+Backend
+
+The NearBuy backend is deployed using Render.
+
+Admin Panel
+
+The NearBuy Admin Panel is deployed using Vercel and connected to the GitHub repository.
+
+Future code changes can be deployed by pushing updates to GitHub.
+
+git add .
+git commit -m "Update NearBuy Admin Panel"
+git push origin main
 
 🔐 Security Note
 
-Environment variables such as database connection strings should not be committed to GitHub.
+Environment variables such as database connection strings, passwords, and API secrets should not be committed to GitHub.
 
-The .env file is excluded using .gitignore.
+The .env file should be excluded using .gitignore.
 
 🎯 Project Objectives
 Connect customers with nearby local shops
@@ -230,6 +344,7 @@ Allow customers to compare seller offers
 Help local businesses find potential customers
 Reduce unnecessary shop-to-shop searching
 Provide a digital platform for local shopping
+Provide administrators with a centralized management panel
 
 🔮 Future Scope
 Online payment integration
@@ -238,8 +353,8 @@ GPS-based seller discovery
 In-app chat between customers and sellers
 Product image uploads
 Seller ratings and reviews
-Admin dashboard
 Order delivery tracking
+Advanced analytics and reporting
 
 👨‍💻 Project
 
@@ -249,4 +364,9 @@ Category: Local Shopping / Reverse Marketplace
 
 📄 License
 
-This project was developed as an academic project for educational purposes.
+This project is developed as an academic project for educational purposes.
+
+The project source code is available under the MIT License.
+
+See the LICENSE file for details.
+
