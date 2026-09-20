@@ -336,104 +336,112 @@ function App() {
     const totalOrders = orders.length;
 
     return (
-      <div className="page-content">
-        <div className="page-header">
+      <div className="page-content dashboard-page">
+        <div className="dashboard-heading-row">
           <div>
-            <h1>Dashboard</h1>
-            <p>Overview of your NearBuy platform.</p>
+            <h1>Welcome Admin 👋</h1>
+            <p>Manage your NearBuy platform from one place.</p>
           </div>
+          <span className="dashboard-date">
+            {new Date().toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}
+          </span>
         </div>
 
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">👤</div>
+        <div className="dashboard-metrics">
+          <button className="dashboard-metric metric-blue" onClick={() => setActivePage('customers')}>
+            <div className="metric-symbol">👥</div>
             <div>
               <span>Total Customers</span>
-              <h2>{totalCustomers}</h2>
+              <strong>{totalCustomers}</strong>
+              <small>View customers <b>→</b></small>
             </div>
-          </div>
+          </button>
 
-          <div className="stat-card">
-            <div className="stat-icon">🏪</div>
+          <button className="dashboard-metric metric-green" onClick={() => setActivePage('sellers')}>
+            <div className="metric-symbol">🏪</div>
             <div>
               <span>Total Sellers</span>
-              <h2>{totalSellers}</h2>
+              <strong>{totalSellers}</strong>
+              <small>View sellers <b>→</b></small>
             </div>
-          </div>
+          </button>
 
-          <div className="stat-card">
-            <div className="stat-icon">📋</div>
-            <div>
-              <span>Total Requests</span>
-              <h2>{totalRequests}</h2>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon">🛒</div>
+          <button className="dashboard-metric metric-orange" onClick={() => setActivePage('orders')}>
+            <div className="metric-symbol">🛒</div>
             <div>
               <span>Total Orders</span>
-              <h2>{totalOrders}</h2>
+              <strong>{totalOrders}</strong>
+              <small>View orders <b>→</b></small>
             </div>
-          </div>
+          </button>
+
+          <button className="dashboard-metric metric-red" onClick={() => setActivePage('requests')}>
+            <div className="metric-symbol">📦</div>
+            <div>
+              <span>Customer Requests</span>
+              <strong>{totalRequests}</strong>
+              <small>View requests <b>→</b></small>
+            </div>
+          </button>
         </div>
 
-        <div className="dashboard-card">
-          <div className="dashboard-card-header">
-            <div>
-              <h2>NearBuy Admin Panel</h2>
-              <p>
-                Manage customers, sellers, product requests and
-                orders from one place.
-              </p>
+        <div className="dashboard-action-grid">
+          <section className="dashboard-panel dashboard-welcome-panel">
+            <div className="panel-heading">
+              <div>
+                <h2>Quick Access</h2>
+                <p>Open the main NearBuy management sections.</p>
+              </div>
             </div>
-          </div>
 
-          <div className="quick-actions">
-            <button
-              onClick={() => setActivePage('customers')}
-              className="quick-action"
-            >
-              <span>👤</span>
+            <div className="dashboard-quick-actions">
+              <button onClick={() => setActivePage('customers')} className="quick-blue">
+                <span><b>👥</b> Customers</span>
+                <span>→</span>
+              </button>
+              <button onClick={() => setActivePage('sellers')} className="quick-green">
+                <span><b>🏪</b> Sellers</span>
+                <span>→</span>
+              </button>
+              <button onClick={() => setActivePage('requests')} className="quick-purple">
+                <span><b>📋</b> Requests</span>
+                <span>→</span>
+              </button>
+              <button onClick={() => setActivePage('orders')} className="quick-orange">
+                <span><b>🛒</b> Orders</span>
+                <span>→</span>
+              </button>
+            </div>
+          </section>
+
+          <section className="dashboard-panel dashboard-status-panel">
+            <div className="panel-heading">
               <div>
-                <strong>Customers</strong>
-                <small>View registered customers</small>
+                <h2>System Status</h2>
+                <p>NearBuy backend connection</p>
               </div>
-            </button>
+            </div>
+
+            <div className="system-status-card">
+              <div className="system-status-dot"></div>
+              <div>
+                <strong>{apiStatus}</strong>
+                <span>{API_URL}</span>
+              </div>
+            </div>
 
             <button
-              onClick={() => setActivePage('sellers')}
-              className="quick-action"
+              className="dashboard-status-button"
+              onClick={checkApiStatus}
+              disabled={apiChecking}
             >
-              <span>🏪</span>
-              <div>
-                <strong>Sellers</strong>
-                <small>View registered shops</small>
-              </div>
+              {apiChecking ? 'Checking...' : 'Check Connection'}
             </button>
-
-            <button
-              onClick={() => setActivePage('requests')}
-              className="quick-action"
-            >
-              <span>📋</span>
-              <div>
-                <strong>Requests</strong>
-                <small>View customer requests</small>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setActivePage('orders')}
-              className="quick-action"
-            >
-              <span>🛒</span>
-              <div>
-                <strong>Orders</strong>
-                <small>View confirmed orders</small>
-              </div>
-            </button>
-          </div>
+          </section>
         </div>
       </div>
     );
@@ -1151,7 +1159,18 @@ function App() {
               <div className="settings-card-icon">👤</div>
               <div>
                 <h2>Admin Profile</h2>
-                <p>Currently signed-in administrator</p>
+                <p>Your account information</p>
+              </div>
+            </div>
+
+            <div className="profile-summary">
+              <div className="profile-avatar">
+                {(savedAdmin.name || 'Administrator').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h3>{savedAdmin.name || 'Administrator'}</h3>
+                <p>{savedAdmin.email || currentEmail || 'admin@nearbuy.com'}</p>
+                <span className="status-badge status-active">Active</span>
               </div>
             </div>
 
@@ -1160,14 +1179,24 @@ function App() {
               <strong>{savedAdmin.name || 'Administrator'}</strong>
             </div>
 
-            <div className="settings-row">
+            <div className="settings-row settings-column">
               <span>Email</span>
               <strong>{savedAdmin.email || currentEmail || 'admin@nearbuy.com'}</strong>
             </div>
 
             <div className="settings-row">
               <span>Role</span>
-              <strong>Admin</strong>
+              <strong>Administrator</strong>
+            </div>
+
+            <div className="settings-row">
+              <span>Account ID</span>
+              <small>{savedAdmin._id || savedAdmin.id || 'Not available'}</small>
+            </div>
+
+            <div className="settings-row">
+              <span>Joined</span>
+              <strong>{formatDate(savedAdmin.createdAt)}</strong>
             </div>
           </section>
 
@@ -1382,7 +1411,7 @@ function App() {
           </div>
 
           <div className="login-heading">
-            <h1>Welcome back</h1>
+            <h1>Welcome Admin 👋</h1>
             <p>Sign in to manage the platform</p>
           </div>
 
@@ -1545,17 +1574,32 @@ function App() {
 
       <main className="main-area">
         <header className="topbar">
-          <div>
-            <span className="topbar-label">
-              Administration
-            </span>
+          <div className="topbar-context">
+            <span className="topbar-label">Administration</span>
+            <span className="topbar-status"><i></i> Online</span>
           </div>
 
           <div className="admin-user">
-            <img className="admin-avatar" src={logo} alt="Admin logo" />
+            <div className="admin-avatar">
+              {(() => {
+                try {
+                  const admin = JSON.parse(localStorage.getItem('adminUser') || '{}');
+                  return (admin.name || 'Admin').charAt(0).toUpperCase();
+                } catch (error) {
+                  return 'A';
+                }
+              })()}
+            </div>
 
             <div>
-              <strong>Administrator</strong>
+              <strong>{(() => {
+                try {
+                  const admin = JSON.parse(localStorage.getItem('adminUser') || '{}');
+                  return admin.name || 'Administrator';
+                } catch (error) {
+                  return 'Administrator';
+                }
+              })()}</strong>
               <small>Admin</small>
             </div>
           </div>
